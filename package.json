@@ -67,12 +67,12 @@
     "@remix-run/react": "latest",
     "framer-motion": "latest",
     "@emailjs/browser": "latest",
-    "nodemailer": "latest",
     "tailwindcss": "latest",
     "highlight.js": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
     "@vercel/speed-insights": "latest",
-    "@vercel/analytics": "latest"
+    "@vercel/analytics": "latest",
+    "nodemailer": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
