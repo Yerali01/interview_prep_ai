@@ -29,13 +29,8 @@ const companies = {
   // Add other companies as needed
 }
 
-interface CompanyPageProps {
-  params: {
-    id: string
-  }
-}
-
-export default function CompanyPage({ params }: CompanyPageProps) {
+// Use the simplest possible approach with inline typing
+export default function CompanyPage({ params }: { params: { id: string } }) {
   const companyId = params.id
   const company = companies[companyId as keyof typeof companies]
 
