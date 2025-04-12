@@ -95,7 +95,7 @@ export default function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {topics.slice(0, 6).map((topic, index) => (
             <div key={topic.id}>
-              <Link href={`/topics/${topic.slug}`}>
+              <Link href={`/topics/${topic.id}`}>
                 <Card className="h-full hover:border-primary/50 transition-all hover:shadow-md hover:shadow-primary/10">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
