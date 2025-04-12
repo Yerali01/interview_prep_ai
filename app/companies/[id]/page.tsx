@@ -29,7 +29,13 @@ const companies = {
   // Add other companies as needed
 }
 
-export default function CompanyPage({ params }: { params: { id: string } }) {
+interface CompanyPageProps {
+  params: {
+    id: string
+  }
+}
+
+export default function CompanyPage({ params }: CompanyPageProps) {
   const companyId = params.id
   const company = companies[companyId as keyof typeof companies]
 
