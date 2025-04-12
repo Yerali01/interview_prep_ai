@@ -1,9 +1,11 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { notFound } from "next/navigation"
+import { useParams } from "next/navigation"
 
 // Sample company data - this would ideally come from a database
 const companies = {
@@ -29,13 +31,26 @@ const companies = {
   // Add other companies as needed
 }
 
-// Use the simplest possible approach with inline typing
-export default function CompanyPage({ params }: { params: { id: string } }) {
-  const companyId = params.id
+export default function CompanyPage() {
+  // Get the id parameter using the useParams hook
+  const params = useParams()
+  const companyId = params.id as string
   const company = companies[companyId as keyof typeof companies]
 
   if (!company) {
-    notFound()
+    // Note: notFound() doesn't work the same way in client components
+    // We'll handle this differently
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <h1 className="text-4xl font-bold mb-4">Company Not Found</h1>
+        <p className="text-lg text-muted-foreground mb-8">The company you're looking for doesn't exist.</p>
+        <Button asChild>
+          <Link href="/companies">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Companies
+          </Link>
+        </Button>
+      </div>
+    )
   }
 
   return (
