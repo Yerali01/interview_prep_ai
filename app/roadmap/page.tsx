@@ -784,13 +784,6 @@ function VerticalRoadmap() {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-bold">4. Practice with quizzes</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Test your knowledge with our interactive quizzes for each topic to reinforce learning.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
                   <h4 className="font-bold">5. Build projects</h4>
                   <p className className="text-sm text-muted-foreground">
                     Apply your knowledge by working on progressively more complex projects.
