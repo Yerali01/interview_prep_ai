@@ -1,13 +1,6 @@
-// Override Next.js types to avoid conflicts
-declare namespace NextJS {
-  interface PageProps {
-    params?: any
-    searchParams?: any
-  }
+interface Window {
+  SpeechRecognition: typeof SpeechRecognition
+  webkitSpeechRecognition: typeof SpeechRecognition
 }
 
-// Declare module for nodemailer to avoid type errors
-declare module "nodemailer" {
-  const createTransport: any
-  export default { createTransport }
-}
+declare var SpeechRecognition: any

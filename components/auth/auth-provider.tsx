@@ -1,134 +1,103 @@
 "use client"
-import { useState, useEffect, createContext, useContext, type ReactNode } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/components/ui/use-toast"
 
-interface AuthContextType {
-  user: any | null
-  session: any | null
-  isLoading: boolean
-  signUp: (email: string, password: string) => Promise<void>
+import type React from "react"
+
+import { createContext, useContext, useEffect, useState } from "react"
+import { getClientSupabase } from "@/lib/supabase"
+
+type User = {
+  id: string
+  email: string
+}
+
+type AuthContextType = {
+  user: User | null
+  loading: boolean
   signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  session: null,
-  isLoading: true,
-  signUp: async () => {},
-  signIn: async () => {},
-  signOut: async () => {},
-})
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState(null)
-  const [session, setSession] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const supabase = createClientComponentClient()
-  const router = useRouter()
-  const { toast } = useToast()
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [supabase, setSupabase] = useState<any>(null)
 
   useEffect(() => {
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
-      setIsLoading(false)
+    // Initialize Supabase client only on the client side
+    const supabaseClient = getClientSupabase()
+    setSupabase(supabaseClient)
+
+    // Check for existing session
+    const checkSession = async () => {
+      try {
+        const { data } = await supabaseClient.auth.getSession()
+        if (data.session?.user) {
+          setUser({
+            id: data.session.user.id,
+            email: data.session.user.email || "",
+          })
+        }
+      } catch (error) {
+        console.error("Error checking session:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    getSession()
+    checkSession()
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    // Set up auth state change listener
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || "",
+        })
+      } else {
+        setUser(null)
+      }
+      setLoading(false)
     })
-  }, [supabase])
 
-  const signUp = async (email: string, password: string) => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/sign-up-success`,
-        },
-      })
-
-      if (error) throw error
-
-      toast({
-        title: "Sign up successful",
-        description: "A confirmation email has been sent to your email address.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign up",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+    return () => {
+      authListener?.subscription.unsubscribe()
     }
-  }
+  }, [])
 
   const signIn = async (email: string, password: string) => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+    if (!supabase) return
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    setLoading(false)
+  }
 
-      if (error) throw error
-
-      toast({
-        title: "Sign in successful",
-        description: "You have successfully signed in.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign in",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+  const signUp = async (email: string, password: string) => {
+    if (!supabase) return
+    setLoading(true)
+    const { error } = await supabase.auth.signUp({ email, password })
+    if (error) throw error
+    setLoading(false)
   }
 
   const signOut = async () => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.signOut()
-
-      if (error) throw error
-
-      toast({
-        title: "Sign out successful",
-        description: "You have successfully signed out.",
-      })
-      router.push("/")
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign out",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    if (!supabase) return
+    setLoading(true)
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    setLoading(false)
   }
 
-  const value = { user, session, isLoading, signUp, signIn, signOut }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>{children}</AuthContext.Provider>
 }
 
-export const useAuth = () => {
-  return useContext(AuthContext)
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
 }

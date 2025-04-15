@@ -2,24 +2,13 @@
 
 import nodemailer from "nodemailer"
 
-// Define interfaces locally instead of using namespace
-interface SendMailOptions {
-  from?: string
-  to?: string | string[]
-  cc?: string | string[]
-  bcc?: string | string[]
-  subject?: string
-  text?: string
-  html?: string
-  [key: string]: any
-}
-
 // Create a transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER || "your-email@gmail.com",
-    pass: process.env.EMAIL_PASSWORD || "your-password",
+    // Using application password for Gmail
+    user: "eraliflash@gmail.com",
+    pass: process.env.EMAIL_PASSWORD || "your-app-password-here",
   },
 })
 
@@ -33,10 +22,9 @@ export async function sendFeedback(formData: FormData) {
   }
 
   try {
-    // Email content
-    const mailOptions: SendMailOptions = {
-      from: `"Flutter Interview Prep" <${process.env.EMAIL_USER || "your-email@gmail.com"}>`,
-      to: process.env.EMAIL_USER || "your-email@gmail.com",
+    await transporter.sendMail({
+      from: `"Flutter Interview Prep" <eraliflash@gmail.com>`,
+      to: "eraliflash@gmail.com",
       subject: `Feedback from ${name}`,
       text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
       html: `
@@ -47,10 +35,7 @@ export async function sendFeedback(formData: FormData) {
         <p>${message.replace(/\n/g, "<br>")}</p>
       `,
       replyTo: email,
-    }
-
-    // Send email
-    await transporter.sendMail(mailOptions)
+    })
 
     return { success: true }
   } catch (error) {
