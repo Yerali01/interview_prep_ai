@@ -29,14 +29,11 @@ const companies = {
   // Add other companies as needed
 }
 
-interface CompanyPageProps {
-  params: {
-    id: string
-  }
-  searchParams?: Record<string, string | string[] | undefined>
+type Props = {
+  params: { id: string }
 }
 
-export default function CompanyPage({ params }: CompanyPageProps) {
+export default function CompanyPage({ params }: Props) {
   const companyId = params.id
   const company = companies[companyId as keyof typeof companies]
 
