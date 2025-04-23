@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -31,10 +31,6 @@ export default function InterviewPage() {
   const { user } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
-
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Update input when transcript changes
   useEffect(() => {
@@ -42,32 +38,6 @@ export default function InterviewPage() {
       setInput(transcript)
     }
   }, [transcript])
-
-  // Detect if user is at bottom of scroll container
-  const checkIfAtBottom = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
-      // If user is within 100px of bottom, consider them at bottom
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100
-      setShouldAutoScroll(isAtBottom)
-    }
-  }
-
-  // Add scroll event listener
-  useEffect(() => {
-    const container = messagesContainerRef.current
-    if (container) {
-      container.addEventListener("scroll", checkIfAtBottom)
-      return () => container.removeEventListener("scroll", checkIfAtBottom)
-    }
-  }, [])
-
-  // Scroll to bottom only when user sends a message or is already at bottom
-  useEffect(() => {
-    if (messages.length > 0 && shouldAutoScroll) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [messages, shouldAutoScroll])
 
   // Start the interview
   const startInterview = async () => {
@@ -77,7 +47,6 @@ export default function InterviewPage() {
     setQuestionCount(0)
     setIsFinished(false)
     setAssessment(null)
-    setShouldAutoScroll(true)
 
     // Initialize with system message
     const systemMessage: AIMessage = {
@@ -113,8 +82,6 @@ export default function InterviewPage() {
     setInput("")
     resetTranscript()
     setIsLoading(true)
-    // Enable auto-scroll when user sends a message
-    setShouldAutoScroll(true)
 
     try {
       // Prepare context for the AI
@@ -171,6 +138,14 @@ export default function InterviewPage() {
       sendMessage()
     }
   }
+
+  // Auto-scroll to the bottom of the messages container
+  useEffect(() => {
+    const messagesContainer = document.getElementById("messages-container")
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight
+    }
+  }, [messages])
 
   return (
     <div className="container py-4 h-[calc(100vh-4rem)]">
@@ -239,9 +214,8 @@ export default function InterviewPage() {
         </Card>
       ) : (
         <div className="flex flex-col h-[calc(100vh-4rem)]">
-          {/* Interview progress */}
-          {/* Messages container - simplified */}
-          <div className="flex-grow overflow-y-auto bg-background" ref={messagesContainerRef}>
+          {/* Messages container - with auto-scroll */}
+          <div id="messages-container" className="flex-grow overflow-y-auto bg-background">
             {messages
               .filter((m) => m.role !== "system")
               .map((message, index) => (
@@ -262,10 +236,9 @@ export default function InterviewPage() {
                   </div>
                 </div>
               ))}
-            <div ref={messagesEndRef} />
           </div>
 
-          {/* Input area - simplified */}
+          {/* Input area */}
           <div className="p-4 border-t bg-background">
             <div className="max-w-4xl mx-auto">
               <Textarea

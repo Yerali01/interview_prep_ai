@@ -9,14 +9,12 @@ import {
   Menu,
   X,
   ExternalLink,
-  Users,
   FileQuestion,
   Map,
   LogIn,
   LogOut,
   User,
   ChevronDown,
-  Building2,
   Bot,
 } from "lucide-react"
 import { useState } from "react"
@@ -31,7 +29,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { DonationButton } from "@/components/donation-button"
 import ThemeToggle from "@/components/theme-toggle"
 
@@ -136,47 +133,6 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Practice dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "text-sm font-medium transition-colors flex items-center",
-                  practiceItems.some((item) => item.active)
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Practice
-                <ChevronDown className="h-4 w-4 ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {practiceItems.length === 0
-                ? null
-                : practiceItems.map((item) => (
-                    <DropdownMenuItem key={item.href} asChild>
-                      <Link href={item.href} className="flex items-center">
-                        {item.icon}
-                        {item.label}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-              <DropdownMenuItem asChild>
-                <Link href="/companies" className="w-full">
-                  <Building2 className="mr-2 h-4 w-4" />
-                  Companies
-                  <Badge variant="outline" className="ml-2 bg-primary/10 text-primary text-xs">
-                    Soon
-                  </Badge>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {/* Resources dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -211,7 +167,6 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <DonationButton />
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -286,42 +241,6 @@ export default function Navbar() {
                 )}
               </Link>
             ))}
-
-            {/* Practice section */}
-            <div className="px-2 pt-4 pb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Practice</p>
-            </div>
-            {practiceItems.length === 0 ? null : (
-              <>
-                {practiceItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={cn(
-                      "text-sm font-medium transition-colors flex items-center p-3 rounded-md",
-                      item.active
-                        ? "text-foreground bg-accent"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
-                    )}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Link>
-                ))}
-              </>
-            )}
-            <Link
-              href="/companies"
-              className="flex items-center p-3 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Building2 className="mr-2 h-4 w-4" />
-              Companies
-              <Badge variant="outline" className="ml-2 bg-primary/10 text-primary text-xs">
-                Soon
-              </Badge>
-            </Link>
 
             {/* Resources section */}
             <div className="px-2 pt-4 pb-2">

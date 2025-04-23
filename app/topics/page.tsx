@@ -8,41 +8,19 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, Search, BookOpen } from "lucide-react"
+import { Clock, Search, BookOpen, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { getTopics } from "@/lib/supabase"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTopics } from "@/contexts/topics-context"
+import { formatDistanceToNow } from "date-fns"
 
 export default function TopicsPage() {
-  const [topics, setTopics] = useState<any[]>([])
+  const { topics, loading, error, refreshTopics, lastFetched } = useTopics()
   const [filteredTopics, setFilteredTopics] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        const topicsData = await getTopics()
-
-        // Sort topics by level: junior -> middle -> senior
-        const levelOrder = { junior: 1, middle: 2, senior: 3 }
-        const sortedTopics = [...topicsData].sort(
-          (a, b) => levelOrder[a.level as keyof typeof levelOrder] - levelOrder[b.level as keyof typeof levelOrder],
-        )
-
-        setTopics(sortedTopics)
-        setFilteredTopics(sortedTopics)
-      } catch (error) {
-        console.error("Error fetching topics:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTopics()
-  }, [])
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     // Filter topics based on search query and active tab
@@ -62,6 +40,12 @@ export default function TopicsPage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refreshTopics()
+    setRefreshing(false)
   }
 
   const getLevelColor = (level: string) => {
@@ -92,9 +76,28 @@ export default function TopicsPage() {
       </motion.div>
 
       <div className="mb-8">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search topics..." className="pl-10" value={searchQuery} onChange={handleSearch} />
+        <div className="flex items-center justify-between mb-6">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search topics..." className="pl-10" value={searchQuery} onChange={handleSearch} />
+          </div>
+          <div className="ml-4 flex items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            {lastFetched && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                Updated {formatDistanceToNow(lastFetched, { addSuffix: true })}
+              </span>
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
@@ -123,6 +126,14 @@ export default function TopicsPage() {
                     </CardFooter>
                   </Card>
                 ))}
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <h3 className="text-xl font-medium mb-2">Error loading topics</h3>
+                <p className="text-muted-foreground mb-6">{error}</p>
+                <Button variant="outline" onClick={handleRefresh}>
+                  Try Again
+                </Button>
               </div>
             ) : filteredTopics.length > 0 ? (
               <motion.div
@@ -156,7 +167,7 @@ export default function TopicsPage() {
                       </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full">
-                          <Link href={`/topics/${topic.slug}`}>
+                          <Link href={`/topics/${String(topic.slug)}`}>
                             <BookOpen className="mr-2 h-4 w-4" /> Read Topic
                           </Link>
                         </Button>

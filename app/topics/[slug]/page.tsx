@@ -1,235 +1,220 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
+import { getTopicBySlug } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ArrowLeft, Brain, Sparkles } from "lucide-react"
+import { ArrowLeft, RefreshCw } from "lucide-react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
-import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
-import { getTopicBySlug, getTopics, type Topic } from "@/lib/supabase"
-import { getTopicRecommendations } from "@/app/actions/get-recommendations"
 import { Skeleton } from "@/components/ui/skeleton"
+import { motion } from "framer-motion"
+import Markdown from "react-markdown"
+import rehypeHighlight from "rehype-highlight"
+import "highlight.js/styles/github-dark.css"
+import { useTopics } from "@/contexts/topics-context"
+
+interface TopicSection {
+  title: string
+  content: string
+  code?: string
+}
 
 export default function TopicPage() {
   const params = useParams()
-  const router = useRouter()
-  const slug = params.slug as string
-
-  const [topic, setTopic] = useState<Topic | null>(null)
-  const [relatedTopics, setRelatedTopics] = useState<Topic[]>([])
+  const slug = params?.slug as string
+  const { topics } = useTopics()
+  const [topic, setTopic] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [loadingRecommendations, setLoadingRecommendations] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
-    async function fetchData() {
+    const fetchTopic = async () => {
       try {
-        setLoading(true)
+        if (!slug) {
+          setError("Topic not found")
+          setLoading(false)
+          return
+        }
+
+        // First try to find the topic in the cached topics
+        const cachedTopic = topics.find((t) => t.slug === slug)
+
+        if (cachedTopic && cachedTopic.content) {
+          console.log("Using cached topic:", cachedTopic)
+          setTopic(cachedTopic)
+          setLoading(false)
+          return
+        }
+
+        // If not found in cache or content is missing, fetch from API
+        console.log("Fetching topic with slug:", slug)
         const topicData = await getTopicBySlug(slug)
-        setTopic(topicData)
-        setLoading(false)
+        console.log("Topic data received:", topicData)
 
-        if (topicData) {
-          setLoadingRecommendations(true)
-          try {
-            // Get recommendations
-            const contentSummary = topicData.content.map((section) => `${section.title}: ${section.content}`).join(" ")
+        if (!topicData) {
+          setError("Topic not found")
+        } else {
+          setTopic(topicData)
 
-            const recommendations = await getTopicRecommendations(
-              slug,
-              topicData.title,
-              contentSummary,
-              topicData.level,
-            )
-
-            setRelatedTopics(recommendations)
-          } catch (error) {
-            console.error("Error getting recommendations:", error)
-            // Fallback to random topics of the same level
-            const allTopics = await getTopics()
-            const sameLevel = allTopics.filter((t) => t.slug !== slug && t.level === topicData.level)
-            setRelatedTopics(sameLevel.slice(0, 3))
-          } finally {
-            setLoadingRecommendations(false)
+          // Debug the content field
+          if (!topicData.content) {
+            console.warn("Topic content is empty or undefined:", topicData)
           }
         }
       } catch (error) {
         console.error("Error fetching topic:", error)
+        setError("Failed to load topic")
+      } finally {
         setLoading(false)
-        setLoadingRecommendations(false)
       }
     }
 
-    fetchData()
-  }, [slug])
+    fetchTopic()
+  }, [slug, topics])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const topicData = await getTopicBySlug(slug)
+      if (topicData) {
+        setTopic(topicData)
+        setError(null)
+      } else {
+        setError("Topic not found")
+      }
+    } catch (error) {
+      console.error("Error refreshing topic:", error)
+      setError("Failed to refresh topic")
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   if (loading) {
+    return <TopicSkeleton />
+  }
+
+  if (error || !topic) {
     return (
-      <div className="container mx-auto px-4 py-12 flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="container mx-auto px-4 py-12">
+        <div className="mb-6">
+          <Button variant="outline" asChild>
+            <Link href="/topics">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Topics
+            </Link>
+          </Button>
+        </div>
+        <div className="text-center py-16">
+          <h1 className="text-3xl font-bold mb-4">Topic Not Found</h1>
+          <p className="text-xl text-muted-foreground mb-8">
+            {error || "The topic you're looking for doesn't exist or has been moved."}
+          </p>
+          <Button asChild>
+            <Link href="/topics">Browse All Topics</Link>
+          </Button>
+        </div>
       </div>
     )
   }
 
-  if (!topic) {
-    return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <h1 className="text-4xl font-bold mb-6">Topic Not Found</h1>
-        <p className="mb-8">The topic you're looking for doesn't exist.</p>
-        <Button asChild>
+  // Parse content if it's a string
+  let contentSections: TopicSection[] = []
+  try {
+    if (typeof topic.content === "string") {
+      contentSections = JSON.parse(topic.content)
+    } else if (Array.isArray(topic.content)) {
+      contentSections = topic.content
+    }
+  } catch (e) {
+    console.error("Error parsing content:", e)
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="mb-6 flex justify-between items-center">
+        <Button variant="outline" asChild>
           <Link href="/topics">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Topics
           </Link>
         </Button>
-      </div>
-    )
-  }
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      transition={{ duration: 0.3 }}
-      className="container mx-auto px-4 py-12"
-    >
-      <Button variant="ghost" className="mb-6" onClick={() => router.push("/topics")}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Topics
-      </Button>
-
-      <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <DifficultyBadge level={topic.level} />
-            <span className="text-sm text-muted-foreground">{topic.estimated_time} min read</span>
-          </div>
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="text-4xl font-bold"
-          >
-            {topic.title}
-          </motion.h1>
-        </div>
-        <div className="flex gap-4">
-          <Button variant="outline" asChild>
-            <Link href={`/quiz?topic=${topic.slug}`}>
-              <Brain className="mr-2 h-4 w-4" /> Take Quiz
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <Card className="mb-8">
-          <CardContent className="p-6 md:p-8">
-            <div className="prose prose-invert max-w-none dark:prose-invert">
-              <h2>Overview</h2>
-              <p>{topic.description}</p>
-
-              {topic.content.map((section, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 * (index + 1) }}
-                >
-                  <h3>{section.title}</h3>
-                  <p>{section.content}</p>
-                  {section.code && (
-                    <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-                      <code>{section.code}</code>
-                    </pre>
-                  )}
-                </motion.div>
-              ))}
-
-              {topic.summary && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.5 }}
-                >
-                  <h2>Summary</h2>
-                  <p>{topic.summary}</p>
-                </motion.div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <h2 className="text-2xl font-bold">Recommended Topics</h2>
-          <Sparkles className="ml-2 h-5 w-5 text-yellow-400" />
-        </div>
-        <Button asChild variant="ghost">
-          <Link href="/topics">View All Topics</Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
         </Button>
       </div>
 
-      {loadingRecommendations ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="h-full">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <Skeleton className="h-7 w-3/4" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-                <Skeleton className="h-4 w-full mt-2" />
-                <Skeleton className="h-4 w-5/6 mt-2" />
-                <Skeleton className="h-4 w-4/6 mt-2" />
-              </CardContent>
-            </Card>
-          ))}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">{topic.title}</h1>
+          <div className="flex items-center text-muted-foreground">
+            <span className="capitalize mr-4">{topic.level} Level</span>
+            <span>{topic.estimated_time} min read</span>
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {relatedTopics.map((relatedTopic, index) => (
-            <motion.div
-              key={relatedTopic.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 * index }}
-            >
-              <Link href={`/topics/${relatedTopic.slug}`}>
-                <Card className="h-full hover:border-primary/50 transition-all hover:shadow-md hover:shadow-primary/10">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xl font-bold">{relatedTopic.title}</h3>
-                      <DifficultyBadge level={relatedTopic.level} />
+
+        <div className="prose prose-lg dark:prose-invert max-w-none">
+          {contentSections && contentSections.length > 0 ? (
+            contentSections.map((section, index) => (
+              <div key={index} className="mb-12">
+                {section.title && <h2 className="text-2xl font-bold mb-4">{section.title}</h2>}
+
+                {section.content && <Markdown rehypePlugins={[rehypeHighlight]}>{section.content}</Markdown>}
+
+                {section.code && (
+                  <div className="mt-4 mb-6">
+                    <div className="bg-gray-900 rounded-md overflow-hidden">
+                      <pre className="language-dart p-4 overflow-x-auto">
+                        <code>{section.code}</code>
+                      </pre>
                     </div>
-                    <p className="text-muted-foreground">{relatedTopic.description}</p>
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md">
+              <p className="text-yellow-800 dark:text-yellow-200">
+                This topic doesn't have any content yet. Check back later!
+              </p>
+            </div>
+          )}
         </div>
-      )}
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
 
-function DifficultyBadge({ level }: { level: "junior" | "middle" | "senior" }) {
-  const colors = {
-    junior: "bg-green-500/20 text-green-400 border-green-500/30",
-    middle: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    senior: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  }
+function TopicSkeleton() {
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="mb-6">
+        <Button variant="outline" disabled>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Topics
+        </Button>
+      </div>
 
-  const labels = {
-    junior: "Junior",
-    middle: "Middle",
-    senior: "Senior",
-  }
+      <div className="mb-8">
+        <Skeleton className="h-12 w-3/4 mb-2" />
+        <Skeleton className="h-6 w-1/4" />
+      </div>
 
-  return <span className={`px-2 py-1 rounded-full text-xs font-medium border ${colors[level]}`}>{labels[level]}</span>
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-2/3" />
+      </div>
+    </div>
+  )
 }

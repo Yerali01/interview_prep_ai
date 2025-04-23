@@ -1,60 +1,56 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+// Don't use edge runtime as it might be causing issues
+// export const runtime = "edge"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // Validate that we have an API key
-    if (!GROQ_API_KEY) {
-      return NextResponse.json({ error: "GROQ API key is not configured" }, { status: 500 })
-    }
+    const { messages } = await request.json()
 
-    // Parse the request body
-    const { messages, temperature = 0.7, maxTokens = 1000 } = await request.json()
-
-    // Validate the request
     if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: "Invalid request: messages must be an array" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid request format. Expected an array of messages." }, { status: 400 })
     }
 
-    // Make the request to GROQ API
-    const response = await fetch(GROQ_API_URL, {
+    // Use the GROQ API key from environment variables
+    const apiKey = process.env.GROQ_API_KEY
+    if (!apiKey) {
+      console.error("GROQ_API_KEY is not defined in environment variables")
+      return NextResponse.json({ error: "API configuration error. Please contact support." }, { status: 500 })
+    }
+
+    // Make request to Groq API
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages,
-        temperature,
-        max_tokens: maxTokens,
+        model: "llama3-8b-8192", // Using Llama 3 model
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1000,
       }),
     })
 
-    // Handle API errors
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error("GROQ API Error:", errorData)
+      const errorData = await response.text()
+      console.error("Groq API error:", response.status, errorData)
       return NextResponse.json(
-        { error: `GROQ API Error: ${errorData.error?.message || response.statusText}` },
-        { status: response.status },
+        { content: "I'm having trouble connecting to the AI service. Please try again later." },
+        { status: 200 },
       )
     }
 
-    // Parse and return the response
     const data = await response.json()
+    const content = data.choices[0]?.message?.content || "No response generated."
 
-    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
-      return NextResponse.json({ error: "Invalid response from GROQ API" }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      content: data.choices[0].message.content,
-    })
+    return NextResponse.json({ content })
   } catch (error) {
-    console.error("Error in AI chat API route:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error in AI chat API:", error)
+    return NextResponse.json(
+      { content: "I'm having trouble connecting to the AI service. Please try again later." },
+      { status: 200 },
+    )
   }
 }
