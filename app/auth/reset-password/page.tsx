@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react"
 import { getClientSupabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function ResetPasswordPage() {
+export default async function ResetPasswordPage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
@@ -21,12 +21,12 @@ export default function ResetPasswordPage() {
   const [isReady, setIsReady] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = await getClientSupabase()
+  const supabase = getClientSupabase()
 
   useEffect(() => {
     // Check if we have access to the hash fragment
     const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession()
+      const { data, error } = await (await supabase).auth.getSession()
       if (error || !data.session) {
         toast({
           title: "Invalid or expired link",
