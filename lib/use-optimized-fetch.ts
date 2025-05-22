@@ -32,8 +32,15 @@ export function useOptimizedFetch<T>(url: string, options?: RequestInit) {
         const result = await response.json()
         setData(result)
       } catch (err) {
-        if (err.name !== "AbortError") {
+        // Properly handle the unknown error type
+        if (err instanceof Error && err.name !== "AbortError") {
+          setError(err)
+        } else if (typeof err === "string") {
+          setError(new Error(err))
+        } else if (err !== null && typeof err === "object" && "name" in err && err.name !== "AbortError") {
           setError(err instanceof Error ? err : new Error(String(err)))
+        } else if (!(err instanceof Error) || err.name !== "AbortError") {
+          setError(new Error(String(err)))
         }
       } finally {
         setLoading(false)
