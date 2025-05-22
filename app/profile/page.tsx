@@ -152,10 +152,10 @@ export default function ProfilePage() {
                       <Card key={result.id} className="overflow-hidden">
                         <div className="p-4 border-b bg-muted/50">
                           <div className="flex justify-between items-center">
-                            <h3 className="font-medium">{result.quiz_name}</h3>
+                            <h3 className="font-medium">{result.quizzes.title}</h3>
                             <div className="flex items-center text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
-                              {formatDate(result.completed_at)}
+                              {formatDate(Number(result.completed_at))}
                             </div>
                           </div>
                         </div>
