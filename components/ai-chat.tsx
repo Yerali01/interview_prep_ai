@@ -65,7 +65,8 @@ export default function AIChat({
     setShowSuggestions(false)
 
     // Add user message to chat
-    const updatedMessages = [...messages, { role: "user", content: messageText }]
+    const newMessage: AIMessage = { role: "user", content: messageText }
+    const updatedMessages = [...messages, newMessage]
     setMessages(updatedMessages)
     setInput("")
     resetTranscript()
