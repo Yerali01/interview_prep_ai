@@ -29,7 +29,7 @@ export const DynamicFloatingAIChat = dynamic(() => import("./floating-ai-chat").
   loading: () => null,
 })
 
-export const DynamicFeedbackModal = dynamic(() => import("@/components/feedback-modal"), {
+export const DynamicFeedbackModal = dynamic(() => import("@/components/feedback-modal").then(mod => ({ default: mod.FeedbackModal })), {
   loading: () => null,
   ssr: false,
 })
