@@ -40,7 +40,7 @@ export default async function ResetPasswordPage() {
     }
 
     checkSession()
-  }, [router, supabase.auth, toast])
+  }, [router, (await supabase).auth, toast])
 
   const validatePassword = () => {
     if (password !== confirmPassword) {
