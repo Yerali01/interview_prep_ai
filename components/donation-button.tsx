@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/dialog"
 import { useState } from "react"
 
-export function DonationButton() {
+interface DonationButtonProps {
+  className?: string;
+}
+
+  export function DonationButton({ className }: DonationButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
