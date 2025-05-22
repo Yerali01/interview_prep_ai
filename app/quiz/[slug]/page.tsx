@@ -294,8 +294,6 @@ export default function QuizPage() {
                       )}
                       <div>
                         <p className="font-medium">{question.question}</p>
-                      
-                        )}
                         <div className="mt-2">
                           <h3 className="font-semibold text-sm">Explanation:</h3>
                           <p className="text-sm">{question.explanation}</p>
