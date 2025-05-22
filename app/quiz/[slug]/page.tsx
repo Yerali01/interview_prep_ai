@@ -294,13 +294,7 @@ export default function QuizPage() {
                       )}
                       <div>
                         <p className="font-medium">{question.question}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Your answer: {question.options[selectedAnswers[index] as keyof typeof question.options]}
-                        </p>
-                        {selectedAnswers[index] !== question.correct_answer && (
-                          <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                            Correct answer: {question.options[question.correct_answer as keyof typeof question.options]}
-                          </p>
+                      
                         )}
                         <div className="mt-2">
                           <h3 className="font-semibold text-sm">Explanation:</h3>
