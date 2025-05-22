@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
     }
 
     checkSession()
-  }, [router, supabase.auth, toast])
+  }, [router, (await supabase).auth, toast])
 
   const validatePassword = () => {
     if (password !== confirmPassword) {
@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
 
     try {
       setIsSubmitting(true)
-      const { error } = await supabase.auth.updateUser({ password })
+      const { error } = await (await supabase).auth.updateUser({ password })
 
       if (error) throw error
 
