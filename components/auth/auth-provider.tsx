@@ -3,10 +3,12 @@ import { useState, useEffect, createContext, useContext, type ReactNode } from "
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
+import type { User, Session } from "@supabase/supabase-js"
+
 
 interface AuthContextType {
-  user: any | null
-  session: any | null
+  user: User | null
+  session: Session | null
   isLoading: boolean
   signUp: (email: string, password: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
@@ -23,8 +25,8 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState(null)
-  const [session, setSession] = useState(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const supabase = createClientComponentClient()
   const router = useRouter()
