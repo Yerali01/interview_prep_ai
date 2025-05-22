@@ -177,7 +177,7 @@ export default function ProfilePage() {
                               <Clock className="h-4 w-4 mr-1" />
                               Time
                             </div>
-                            <div className="text-lg font-bold">{formatTime(result.completion_time)}</div>
+                            <div className="text-lg font-bold">{formatTime(result.completed_at)}</div>
                             <div className="text-xs text-muted-foreground">minutes:seconds</div>
                           </div>
                           <div className="flex items-center justify-center">
