@@ -206,15 +206,14 @@ export async function getUserQuizResults(userId: string) {
 export async function markTopicAsRead(userId: string, topicId: number | string) {
   const { data, error } = await supabase
     .from("user_topic_progress")
-    .insert([
+    .upsert([
       {
         user_id: userId,
         topic_id: topicId,
         read_at: new Date(),
       },
     ])
-    .onConflict(["user_id", "topic_id"])
-    .merge()
+    .select() // Optional: if you want to return the inserted/updated data
 
   if (error) {
     console.error("Error marking topic as read:", error)
