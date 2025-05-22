@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     // Check if we have access to the hash fragment
     const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession()
+      const { data, error } = await (await supabase).auth.getSession()
       if (error || !data.session) {
         toast({
           title: "Invalid or expired link",

@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const {
           data: { session },
-        } = await supabase.auth.getSession()
+        } = await (await supabase).auth.getSession()
         setSession(session)
         setUser(session?.user ?? null)
       } catch (error) {
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await (await supabase).auth.signUp({
         email,
         password,
         options: {
