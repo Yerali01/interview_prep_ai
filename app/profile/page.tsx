@@ -155,7 +155,7 @@ export default function ProfilePage() {
                             <h3 className="font-medium">{result.quizzes.title}</h3>
                             <div className="flex items-center text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
-                              {formatDate(Number(result.completed_at))}
+                              {formatDate(result.completed_at)}
                             </div>
                           </div>
                         </div>
