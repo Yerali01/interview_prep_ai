@@ -6,6 +6,20 @@ import { useState, useRef, useEffect } from "react"
 import type { Definition } from "@/lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 
+// VS Code-like syntax highlighting colors
+const categoryColors: Record<string, string> = {
+  "Flutter Widgets": "#4EC9B0", // teal (like classes/types)
+  "Flutter Concepts": "#9CDCFE", // light blue (like variables)
+  "Dart Concepts": "#C586C0", // pinkish purple (like keywords)
+  "State Management": "#DCDCAA", // light yellow (like functions)
+  "Flutter Navigation": "#CE9178", // orange-brown (like strings)
+  "Flutter Graphics": "#6A9955", // green (like comments)
+  "Flutter Animations": "#BB9AF7", // light purple
+  "Flutter Development": "#569CD6", // blue (like keywords)
+  // Default color if category doesn't match
+  default: "#9CDCFE", // light blue
+}
+
 interface DefinitionTooltipProps {
   term: string
   definition: Definition
@@ -57,11 +71,18 @@ export function DefinitionTooltip({ term, definition, children }: DefinitionTool
     }
   }, [isVisible])
 
+  // Get the color based on the term's category
+  const getColor = () => {
+    if (!definition.category) return categoryColors.default
+    return categoryColors[definition.category] || categoryColors.default
+  }
+
   return (
     <>
       <span
         ref={triggerRef}
-        className="relative cursor-help border-b border-dotted border-blue-500 text-blue-600 dark:text-blue-400 hover:border-blue-700 dark:hover:border-blue-300 transition-colors"
+        className="relative cursor-help font-medium transition-colors"
+        style={{ color: getColor() }}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
         onFocus={() => setIsVisible(true)}
@@ -83,7 +104,7 @@ export function DefinitionTooltip({ term, definition, children }: DefinitionTool
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-50 max-w-sm p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg"
+            className="fixed z-50 max-w-sm p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-lg text-gray-100"
             style={{
               left: position.x,
               top: position.y,
@@ -92,20 +113,26 @@ export function DefinitionTooltip({ term, definition, children }: DefinitionTool
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{definition.term}</h4>
+                <h4 className="font-semibold text-sm text-gray-100">{definition.term}</h4>
                 {definition.category && (
-                  <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                  <span
+                    className="text-xs px-2 py-1 rounded-full"
+                    style={{
+                      backgroundColor: `${getColor()}20`, // 20% opacity version of the color
+                      color: getColor(),
+                    }}
+                  >
                     {definition.category}
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{definition.definition}</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{definition.definition}</p>
             </div>
 
             {/* Arrow pointing to the trigger */}
             <div className="absolute top-full left-1/2 transform -translate-x-1/2">
-              <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200 dark:border-t-gray-700"></div>
-              <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white dark:border-t-gray-800 -mt-1"></div>
+              <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-700"></div>
+              <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800 -mt-1"></div>
             </div>
           </motion.div>
         )}

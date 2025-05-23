@@ -12,6 +12,7 @@ import "highlight.js/styles/github-dark.css"
 import { useTopics } from "@/contexts/topics-context"
 import { useDefinitions } from "@/contexts/definitions-context"
 import { EnhancedMarkdown } from "@/components/enhanced-markdown"
+import { CodeSyntaxLegend } from "@/components/code-syntax-legend"
 
 interface TopicSection {
   title: string
@@ -140,16 +141,19 @@ export default function TopicPage() {
           </Link>
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <CodeSyntaxLegend />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
