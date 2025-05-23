@@ -7,7 +7,7 @@ interface User {
   email: string | null;
   name: string | null;
 }
-
+//comment
 interface AuthContextType {
   user: User | null;
   loading: boolean;
