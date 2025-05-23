@@ -1,94 +1,103 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, RefreshCw, BookOpen } from "lucide-react"
-import Link from "next/link"
-import { motion } from "framer-motion"
-import { Skeleton } from "@/components/ui/skeleton"
-import { getQuizzes, type Quiz } from "@/lib/supabase"
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, RefreshCw, BookOpen } from "lucide-react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getQuizzes, type Quiz } from "@/lib/supabase";
 
 // Force dynamic rendering to prevent prerender errors
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export default function QuizPage() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [filteredQuizzes, setFilteredQuizzes] = useState<Quiz[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("all")
-  const [refreshing, setRefreshing] = useState(false)
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filteredQuizzes, setFilteredQuizzes] = useState<Quiz[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchQuizzes = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const quizzesData = await getQuizzes()
+      setLoading(true);
+      setError(null);
+      const quizzesData = await getQuizzes();
 
       // Sort quizzes by level: junior -> middle -> senior
-      const levelOrder = { junior: 1, middle: 2, senior: 3 }
+      const levelOrder = { junior: 1, middle: 2, senior: 3 };
       const sortedQuizzes = [...quizzesData].sort(
-        (a, b) => levelOrder[a.level as keyof typeof levelOrder] - levelOrder[b.level as keyof typeof levelOrder],
-      )
+        (a, b) =>
+          levelOrder[a.level as keyof typeof levelOrder] -
+          levelOrder[b.level as keyof typeof levelOrder]
+      );
 
-      setQuizzes(sortedQuizzes)
+      setQuizzes(sortedQuizzes);
     } catch (err) {
-      console.error("Error fetching quizzes:", err)
-      setError("Failed to load quizzes")
+      console.error("Error fetching quizzes:", err);
+      setError("Failed to load quizzes");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchQuizzes()
-  }, [])
+    fetchQuizzes();
+  }, []);
 
   useEffect(() => {
     // Filter quizzes based on search query and active tab
     const filtered = quizzes.filter((quiz) => {
       const matchesSearch =
         quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        quiz.description.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesTab = activeTab === "all" || quiz.level === activeTab
-      return matchesSearch && matchesTab
-    })
-    setFilteredQuizzes(filtered)
-  }, [searchQuery, activeTab, quizzes])
+        quiz.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesTab = activeTab === "all" || quiz.level === activeTab;
+      return matchesSearch && matchesTab;
+    });
+    setFilteredQuizzes(filtered);
+  }, [searchQuery, activeTab, quizzes]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-  }
+    setSearchQuery(e.target.value);
+  };
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value)
-  }
+    setActiveTab(value);
+  };
 
   const handleRefresh = async () => {
-    setRefreshing(true)
-    await fetchQuizzes()
-    setRefreshing(false)
-  }
+    setRefreshing(true);
+    await fetchQuizzes();
+    setRefreshing(false);
+  };
 
   const getLevelColor = (level: string) => {
     switch (level) {
       case "junior":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
       case "middle":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
       case "senior":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -117,7 +126,7 @@ export default function QuizPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -138,7 +147,12 @@ export default function QuizPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search quizzes..." className="pl-10" value={searchQuery} onChange={handleSearch} />
+            <Input
+              placeholder="Search quizzes..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={handleSearch}
+            />
           </div>
           <div className="ml-4 flex items-center">
             <Button
@@ -148,13 +162,19 @@ export default function QuizPage() {
               disabled={refreshing || loading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
+        <Tabs
+          defaultValue="all"
+          value={activeTab}
+          onValueChange={handleTabChange}
+        >
           <TabsList className="grid grid-cols-4 mb-8">
             <TabsTrigger value="all">All Levels</TabsTrigger>
             <TabsTrigger value="junior">Junior</TabsTrigger>
@@ -165,7 +185,9 @@ export default function QuizPage() {
           <TabsContent value={activeTab} className="mt-0">
             {error ? (
               <div className="text-center py-12">
-                <h3 className="text-xl font-medium mb-2">Error loading quizzes</h3>
+                <h3 className="text-xl font-medium mb-2">
+                  Error loading quizzes
+                </h3>
                 <p className="text-muted-foreground mb-6">{error}</p>
                 <Button variant="outline" onClick={handleRefresh}>
                   Try Again
@@ -188,16 +210,83 @@ export default function QuizPage() {
                     <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
-                          <CardTitle className="text-xl">{quiz.title}</CardTitle>
+                          <CardTitle className="text-xl">
+                            {quiz.title}
+                          </CardTitle>
                           <Badge className={getLevelColor(quiz.level)}>
-                            {quiz.level.charAt(0).toUpperCase() + quiz.level.slice(1)}
+                            {quiz.level.charAt(0).toUpperCase() +
+                              quiz.level.slice(1)}
                           </Badge>
                         </div>
-                        <CardDescription>{quiz.description}</CardDescription>
+                        <CardDescription className="font-mono text-sm bg-muted/50 p-3 rounded-md mt-2">
+                          <pre className="whitespace-pre-wrap">
+                            {quiz.description.split(" ").map((word, i) => {
+                              // Keywords that should be highlighted
+                              const keywords = [
+                                "class",
+                                "function",
+                                "method",
+                                "property",
+                                "variable",
+                                "const",
+                                "let",
+                                "var",
+                                "return",
+                                "if",
+                                "else",
+                                "for",
+                                "while",
+                                "try",
+                                "catch",
+                                "async",
+                                "await",
+                                "import",
+                                "export",
+                                "from",
+                                "type",
+                                "interface",
+                              ];
+                              const types = [
+                                "string",
+                                "number",
+                                "boolean",
+                                "array",
+                                "object",
+                                "void",
+                                "null",
+                                "undefined",
+                                "any",
+                              ];
+
+                              // Check if word is a keyword or type
+                              const isKeyword = keywords.includes(
+                                word.toLowerCase()
+                              );
+                              const isType = types.includes(word.toLowerCase());
+
+                              return (
+                                <span
+                                  key={i}
+                                  className={`${
+                                    isKeyword
+                                      ? "text-blue-500 dark:text-blue-400"
+                                      : isType
+                                      ? "text-purple-500 dark:text-purple-400"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {word}{" "}
+                                </span>
+                              );
+                            })}
+                          </pre>
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="flex-grow">
                         <div className="text-sm text-muted-foreground">
-                          {quiz.questions && quiz.questions.length > 0 && <p>{quiz.questions.length} questions</p>}
+                          {quiz.questions && quiz.questions.length > 0 && (
+                            <p>{quiz.questions.length} questions</p>
+                          )}
                         </div>
                       </CardContent>
                       <CardFooter>
@@ -215,13 +304,14 @@ export default function QuizPage() {
               <div className="text-center py-12">
                 <h3 className="text-xl font-medium mb-2">No quizzes found</h3>
                 <p className="text-muted-foreground mb-6">
-                  Try adjusting your search or filter to find what you're looking for.
+                  Try adjusting your search or filter to find what you're
+                  looking for.
                 </p>
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setSearchQuery("")
-                    setActiveTab("all")
+                    setSearchQuery("");
+                    setActiveTab("all");
                   }}
                 >
                   Clear filters
@@ -232,5 +322,5 @@ export default function QuizPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
