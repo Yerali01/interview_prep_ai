@@ -1,4 +1,4 @@
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 
 // Dynamically import the quiz content to prevent SSR issues
-const QuizContent = dynamic(() => import("./quiz-content"), {
+const QuizContent = dynamicImport(() => import("./quiz-content"), {
   ssr: false,
   loading: () => (
     <div className="container mx-auto px-4 py-12">
