@@ -7,6 +7,7 @@ import Footer from "@/components/footer";
 import { ThemeProvider } from "@/components/theme-context";
 import { Toaster } from "@/components/ui/toaster";
 import { DefinitionsProvider } from "@/contexts/definitions-context";
+import { TopicsProvider } from "@/contexts/topics-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,12 +28,14 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <DefinitionsProvider>
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
-            <Toaster />
+            <TopicsProvider>
+              <div className="flex flex-col min-h-screen">
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
+              <Toaster />
+            </TopicsProvider>
           </DefinitionsProvider>
         </ThemeProvider>
       </body>
