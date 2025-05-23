@@ -6,6 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+import QuizContent from "./quiz-content";
 
 // Force dynamic rendering to prevent prerender errors
 export const dynamic = "force-dynamic";
