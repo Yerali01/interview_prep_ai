@@ -1,8 +1,11 @@
-"use client"
-
-import dynamic from "next/dynamic"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 
 // Dynamically import the quiz content to prevent SSR issues
 const QuizContent = dynamic(() => import("./quiz-content"), {
@@ -34,11 +37,11 @@ const QuizContent = dynamic(() => import("./quiz-content"), {
       </div>
     </div>
   ),
-})
+});
 
 // Force dynamic rendering to prevent prerender errors
-export const forceDynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export default function QuizPage() {
-  return <QuizContent />
+  return <QuizContent />;
 }
