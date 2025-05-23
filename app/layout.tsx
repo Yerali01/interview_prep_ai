@@ -1,36 +1,32 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
+import { DefinitionsProvider } from "@/contexts/definitions-context"
 import { TopicsProvider } from "@/contexts/topics-context"
 import { QuizProvider } from "@/contexts/quiz-context"
-
-const inter = Inter({ subsets: ["latin"] })
+import { AuthProvider } from "@/contexts/auth-context"
 
 export const metadata: Metadata = {
-  title: "Flutter Interview Prep",
-  description: "Prepare for Flutter interviews with comprehensive resources and practice",
-    generator: 'v0.dev'
+  title: "v0 App",
+  description: "Created with v0",
+  generator: "v0.dev",
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <html lang="en">
+      <body>
+        <DefinitionsProvider>
           <TopicsProvider>
             <QuizProvider>
-              <div className="flex flex-col min-h-screen">
-                <Navbar />
-                <main className="flex-grow">{children}</main>
-                <Footer />
-              </div>
+              <AuthProvider>{children}</AuthProvider>
             </QuizProvider>
           </TopicsProvider>
-        </ThemeProvider>
+        </DefinitionsProvider>
       </body>
     </html>
   )
