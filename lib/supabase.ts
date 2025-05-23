@@ -246,29 +246,6 @@ export async function getResources() {
   return data || []
 }
 
-// Definitions functions
-export async function getDefinitions() {
-  const { data, error } = await supabase.from("definitions").select("*").order("term", { ascending: true })
-
-  if (error) {
-    console.error("Error fetching definitions:", error)
-    throw error
-  }
-
-  return data || []
-}
-
-export async function getDefinitionByTerm(term: string) {
-  const { data, error } = await supabase.from("definitions").select("*").ilike("term", term).single()
-
-  if (error) {
-    console.error("Error fetching definition:", error)
-    return null
-  }
-
-  return data
-}
-
 export async function getClientSupabase() {
   return createClientComponentClient()
 }
@@ -318,13 +295,4 @@ export type QuizResult = {
   total_questions: number
   completed_at: string
   quizzes: Quiz
-}
-
-export type Definition = {
-  id: number
-  term: string
-  definition: string
-  category?: string
-  created_at: string
-  updated_at: string
 }

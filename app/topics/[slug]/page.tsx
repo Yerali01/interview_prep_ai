@@ -8,10 +8,10 @@ import { ArrowLeft, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { motion } from "framer-motion"
+import Markdown from "react-markdown"
+import rehypeHighlight from "rehype-highlight"
 import "highlight.js/styles/github-dark.css"
 import { useTopics } from "@/contexts/topics-context"
-import { useDefinitions } from "@/contexts/definitions-context"
-import { EnhancedMarkdown } from "@/components/enhanced-markdown"
 
 interface TopicSection {
   title: string
@@ -23,7 +23,6 @@ export default function TopicPage() {
   const params = useParams()
   const slug = params?.slug as string
   const { topics } = useTopics()
-  const { definitions } = useDefinitions()
   const [topic, setTopic] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -167,7 +166,7 @@ export default function TopicPage() {
               <div key={index} className="mb-12">
                 {section.title && <h2 className="text-2xl font-bold mb-4">{section.title}</h2>}
 
-                {section.content && <EnhancedMarkdown content={section.content} definitions={definitions} />}
+                {section.content && <Markdown rehypePlugins={[rehypeHighlight]}>{section.content}</Markdown>}
 
                 {section.code && (
                   <div className="mt-4 mb-6">
