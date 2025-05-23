@@ -1,6 +1,34 @@
 import { createClient } from "@supabase/supabase-js"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
+// Define types for our data
+export interface Topic {
+  id: number
+  title: string
+  slug: string
+  description: string
+  content: string | TopicSection[]
+  level: string
+  estimated_time: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TopicSection {
+  title: string
+  content: string
+  code?: string
+}
+
+export interface Definition {
+  id: number
+  term: string
+  definition: string
+  category?: string
+  created_at: string
+  updated_at: string
+}
+
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -50,46 +78,40 @@ export async function getCurrentUser() {
   return user
 }
 
-// Topics functions
+// Fetch all topics
 export async function getTopics() {
-  const { data, error } = await supabase.from("topics").select("*").order("id", { ascending: true })
+  const { data, error } = await supabase.from("topics").select("*").order("created_at", { ascending: false })
 
   if (error) {
     console.error("Error fetching topics:", error)
     throw error
   }
 
-  return data || []
+  return data as Topic[]
 }
 
+// Fetch a topic by slug
 export async function getTopicBySlug(slug: string) {
-  console.log("Fetching topic with slug:", slug)
-
-  // Make sure to explicitly select all fields including content
-  const { data, error } = await supabase
-    .from("topics")
-    .select("id, slug, title, description, level, estimated_time, content, summary")
-    .eq("slug", slug)
-    .single()
+  const { data, error } = await supabase.from("topics").select("*").eq("slug", slug).single()
 
   if (error) {
-    console.error("Error fetching topic by slug:", error, "Slug:", slug)
+    console.error(`Error fetching topic with slug ${slug}:`, error)
     return null
   }
 
-  console.log("Topic data retrieved:", data)
+  return data as Topic
+}
 
-  // If content is a string that looks like JSON, try to parse it
-  if (data && typeof data.content === "string" && (data.content.startsWith("[") || data.content.startsWith("{"))) {
-    try {
-      data.content = JSON.parse(data.content)
-    } catch (e) {
-      console.error("Error parsing content JSON:", e)
-      // Keep the original string if parsing fails
-    }
+// Fetch all definitions
+export async function getDefinitions() {
+  const { data, error } = await supabase.from("definitions").select("*").order("term", { ascending: true })
+
+  if (error) {
+    console.error("Error fetching definitions:", error)
+    throw error
   }
 
-  return data
+  return data as Definition[]
 }
 
 // Quiz functions
@@ -246,25 +268,19 @@ export async function getResources() {
   return data || []
 }
 
+export async function getDefinitionByTerm(term: string) {
+  const { data, error } = await supabase.from("definitions").select("*").ilike("term", term).single()
+
+  if (error) {
+    console.error("Error fetching definition:", error)
+    return null
+  }
+
+  return data
+}
+
 export async function getClientSupabase() {
   return createClientComponentClient()
-}
-
-export interface TopicSection {
-  title?: string
-  content: string
-  code?: string
-}
-
-export type Topic = {
-  id: number | string
-  slug: string
-  title: string
-  description: string
-  level: "junior" | "middle" | "senior"
-  estimated_time: number
-  content: TopicSection[] | string
-  summary: string | null
 }
 
 export type QuizQuestion = {
