@@ -1,10 +1,8 @@
 "use client"
 
-import { CardDescription } from "@/components/ui/card"
-
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -150,17 +148,22 @@ export default function QuizContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                   >
-                    <Card className="h-full flex flex-col">
+                    <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-200">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
-                          <CardTitle className="text-xl">{quiz.title}</CardTitle>
+                          <CardTitle className="text-xl line-clamp-2">{quiz.title}</CardTitle>
                           <Badge className={getLevelColor(quiz.level)}>
                             {quiz.level.charAt(0).toUpperCase() + quiz.level.slice(1)}
                           </Badge>
                         </div>
-                        <CardDescription>{quiz.description}</CardDescription>
+                        <CardDescription className="line-clamp-3">{quiz.description}</CardDescription>
                       </CardHeader>
-                      <CardContent className="flex-grow">{/* Additional quiz info could go here */}</CardContent>
+                      <CardContent className="flex-grow">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>Questions: {quiz.questions?.length || 0}</span>
+                          <span>Level: {quiz.level}</span>
+                        </div>
+                      </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full">
                           <Link href={`/quiz/${String(quiz.slug)}`}>
@@ -176,17 +179,21 @@ export default function QuizContent() {
               <div className="text-center py-12">
                 <h3 className="text-xl font-medium mb-2">No quizzes found</h3>
                 <p className="text-muted-foreground mb-6">
-                  Try adjusting your search or filter to find what you're looking for.
+                  {searchQuery || activeTab !== "all"
+                    ? "Try adjusting your search or filter to find what you're looking for."
+                    : "No quizzes are available at the moment. Check back later!"}
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery("")
-                    setActiveTab("all")
-                  }}
-                >
-                  Clear filters
-                </Button>
+                {(searchQuery || activeTab !== "all") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery("")
+                      setActiveTab("all")
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
               </div>
             )}
           </TabsContent>
