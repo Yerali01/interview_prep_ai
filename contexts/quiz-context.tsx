@@ -35,9 +35,11 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       setQuizzes(sortedQuizzes)
       setLastFetched(Date.now())
 
-      // Store in localStorage for persistence across page refreshes
-      localStorage.setItem("cachedQuizzes", JSON.stringify(sortedQuizzes))
-      localStorage.setItem("quizzesCacheTimestamp", Date.now().toString())
+      // Store in localStorage for persistence across page refreshes (only on client)
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cachedQuizzes", JSON.stringify(sortedQuizzes))
+        localStorage.setItem("quizzesCacheTimestamp", Date.now().toString())
+      }
     } catch (err) {
       console.error("Error fetching quizzes:", err)
       setError("Failed to load quizzes")
@@ -51,27 +53,33 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Try to load from cache first
-    const cachedQuizzes = localStorage.getItem("cachedQuizzes")
-    const cacheTimestamp = localStorage.getItem("quizzesCacheTimestamp")
+    // Only access localStorage on the client side
+    if (typeof window !== "undefined") {
+      // Try to load from cache first
+      const cachedQuizzes = localStorage.getItem("cachedQuizzes")
+      const cacheTimestamp = localStorage.getItem("quizzesCacheTimestamp")
 
-    if (cachedQuizzes && cacheTimestamp) {
-      try {
-        const parsedQuizzes = JSON.parse(cachedQuizzes)
-        setQuizzes(parsedQuizzes)
-        setLastFetched(Number.parseInt(cacheTimestamp))
-        setLoading(false)
+      if (cachedQuizzes && cacheTimestamp) {
+        try {
+          const parsedQuizzes = JSON.parse(cachedQuizzes)
+          setQuizzes(parsedQuizzes)
+          setLastFetched(Number.parseInt(cacheTimestamp))
+          setLoading(false)
 
-        // If cache is older than 1 hour, refresh in background
-        const ONE_HOUR = 60 * 60 * 1000
-        if (Date.now() - Number.parseInt(cacheTimestamp) > ONE_HOUR) {
+          // If cache is older than 1 hour, refresh in background
+          const ONE_HOUR = 60 * 60 * 1000
+          if (Date.now() - Number.parseInt(cacheTimestamp) > ONE_HOUR) {
+            fetchQuizzes()
+          }
+        } catch (err) {
+          console.error("Error parsing cached quizzes:", err)
           fetchQuizzes()
         }
-      } catch (err) {
-        console.error("Error parsing cached quizzes:", err)
+      } else {
         fetchQuizzes()
       }
     } else {
+      // On server side, just fetch without cache
       fetchQuizzes()
     }
   }, [])
