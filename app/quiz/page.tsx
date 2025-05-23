@@ -1,4 +1,4 @@
-import dynamicImport from "next/dynamic";
+import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -7,10 +7,11 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 
-// Dynamically import the quiz content to prevent SSR issues
-const QuizContent = dynamicImport(() => import("./quiz-content"), {
-  ssr: false,
-  loading: () => (
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = "force-dynamic";
+
+function LoadingSkeleton() {
+  return (
     <div className="container mx-auto px-4 py-12">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Flutter Quizzes</h1>
@@ -36,12 +37,13 @@ const QuizContent = dynamicImport(() => import("./quiz-content"), {
         ))}
       </div>
     </div>
-  ),
-});
-
-// Force dynamic rendering to prevent prerender errors
-export const dynamic = "force-dynamic";
+  );
+}
 
 export default function QuizPage() {
-  return <QuizContent />;
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <QuizContent />
+    </Suspense>
+  );
 }
