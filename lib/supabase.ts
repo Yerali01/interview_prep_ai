@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 // Define types for our data
 export interface Topic {
@@ -100,11 +99,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// Client-side supabase - ENSURE THIS IS EXPORTED
-export function getClientSupabase() {
-  return createClientComponentClient()
-}
 
 // Auth functions
 export async function signUp(email: string, password: string) {
@@ -437,6 +431,3 @@ function shuffleArray<T>(array: T[]): T[] {
   }
   return newArray
 }
-
-// EXPLICIT EXPORTS - ENSURE ALL FUNCTIONS ARE EXPORTED
-export { shuffleArray }
