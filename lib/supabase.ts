@@ -95,24 +95,16 @@ export type QuizResult = {
   quizzes: Quiz
 }
 
-// Export all types
-export type {
-  Topic,
-  TopicSection,
-  Definition,
-  Project,
-  ProjectTechnology,
-  ProjectFeature,
-  Quiz,
-  QuizQuestion,
-  QuizResult,
-}
-
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Client-side supabase - ENSURE THIS IS EXPORTED
+export function getClientSupabase() {
+  return createClientComponentClient()
+}
 
 // Auth functions
 export async function signUp(email: string, password: string) {
@@ -157,7 +149,7 @@ export async function getCurrentUser() {
   return user
 }
 
-// Topic functions - ENSURE THIS IS EXPORTED
+// Topic functions
 export async function getTopics() {
   const { data, error } = await supabase.from("topics").select("*").order("created_at", { ascending: false })
 
@@ -399,11 +391,6 @@ export async function getResources() {
   return data || []
 }
 
-// Client-side supabase
-export async function getClientSupabase() {
-  return createClientComponentClient()
-}
-
 // Helper function for topic recommendations (client-side only)
 export function getTopicRecommendations(
   allTopics: Topic[],
@@ -450,3 +437,6 @@ function shuffleArray<T>(array: T[]): T[] {
   }
   return newArray
 }
+
+// EXPLICIT EXPORTS - ENSURE ALL FUNCTIONS ARE EXPORTED
+export { shuffleArray }
