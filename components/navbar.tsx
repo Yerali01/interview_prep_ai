@@ -16,6 +16,7 @@ import {
   User,
   ChevronDown,
   Bot,
+  Code,
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -37,10 +38,8 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { user, signOut } = useAuth()
 
-  // Update the mainNavItems array to remove Home
-  // Main navigation items
+  // Main navigation items with Projects added
   const mainNavItems = [
-    // Home tab removed
     {
       href: "/topics",
       label: "Topics",
@@ -52,6 +51,12 @@ export default function Navbar() {
       label: "Quizzes",
       icon: <Brain className="h-4 w-4 mr-2" />,
       active: pathname === "/quiz" || pathname.startsWith("/quiz/"),
+    },
+    {
+      href: "/projects",
+      label: "Projects",
+      icon: <Code className="h-4 w-4 mr-2" />,
+      active: pathname === "/projects" || pathname.startsWith("/projects/"),
     },
     {
       href: "/interview",
@@ -66,12 +71,6 @@ export default function Navbar() {
       icon: <FileQuestion className="h-4 w-4 mr-2" />,
       active: pathname === "/interview-prep",
     },
-  ]
-
-  // Remove Interview Prep from practiceItems
-  // Items for the "Practice" dropdown
-  const practiceItems = [
-    // Interview Prep has been moved to mainNavItems
   ]
 
   // Items for the "Resources" dropdown
@@ -206,7 +205,6 @@ export default function Navbar() {
         {/* Mobile menu button and user account */}
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
-          {/* Remove the sign-in button from the mobile topbar */}
           <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </Button>
@@ -263,7 +261,7 @@ export default function Navbar() {
               </Link>
             ))}
 
-            {/* Account section - Add sign in button to mobile menu */}
+            {/* Account section */}
             <div className="px-2 pt-4 pb-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account</p>
             </div>
