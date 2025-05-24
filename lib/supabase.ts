@@ -29,6 +29,42 @@ export interface Definition {
   updated_at: string
 }
 
+export interface Project {
+  id: number
+  name: string
+  slug: string
+  description: string
+  difficulty_level: "beginner" | "intermediate" | "advanced"
+  estimated_duration: string
+  category: string
+  github_url?: string
+  demo_url?: string
+  image_url?: string
+  is_pet_project: boolean
+  real_world_example?: string
+  created_at: string
+  updated_at: string
+  technologies?: ProjectTechnology[]
+  features?: ProjectFeature[]
+}
+
+export interface ProjectTechnology {
+  id: number
+  project_id: number
+  technology_name: string
+  explanation: string
+  is_required: boolean
+  category: string
+}
+
+export interface ProjectFeature {
+  id: number
+  project_id: number
+  feature_name: string
+  description: string
+  priority: "low" | "medium" | "high"
+}
+
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -112,6 +148,44 @@ export async function getDefinitions() {
   }
 
   return data as Definition[]
+}
+
+// Projects functions
+export async function getProjects() {
+  const { data, error } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      project_technologies(*),
+      project_features(*)
+    `)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching projects:", error)
+    throw error
+  }
+
+  return data as Project[]
+}
+
+export async function getProjectBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      project_technologies(*),
+      project_features(*)
+    `)
+    .eq("slug", slug)
+    .single()
+
+  if (error) {
+    console.error(`Error fetching project with slug ${slug}:`, error)
+    return null
+  }
+
+  return data as Project
 }
 
 // Quiz functions
