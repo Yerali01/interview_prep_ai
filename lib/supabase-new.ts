@@ -95,19 +95,6 @@ export type QuizResult = {
   quizzes: Quiz
 }
 
-// Export all types
-export type {
-  Topic,
-  TopicSection,
-  Definition,
-  Project,
-  ProjectTechnology,
-  ProjectFeature,
-  Quiz,
-  QuizQuestion,
-  QuizResult,
-}
-
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -157,7 +144,7 @@ export async function getCurrentUser() {
   return user
 }
 
-// Topic functions - ENSURE THIS IS EXPORTED
+// Topic functions - EXPLICITLY EXPORTED
 export async function getTopics(): Promise<Topic[]> {
   const { data, error } = await supabase.from("topics").select("*").order("created_at", { ascending: false })
 
@@ -207,13 +194,11 @@ export async function getDefinitionByTerm(term: string): Promise<Definition | nu
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await supabase
     .from("projects")
-    .select(
-      `
+    .select(`
       *,
       project_technologies(*),
       project_features(*)
-    `,
-    )
+    `)
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -227,13 +212,11 @@ export async function getProjects(): Promise<Project[]> {
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   const { data, error } = await supabase
     .from("projects")
-    .select(
-      `
+    .select(`
       *,
       project_technologies(*),
       project_features(*)
-    `,
-    )
+    `)
     .eq("slug", slug)
     .single()
 
@@ -258,24 +241,20 @@ export async function getQuizzes() {
 }
 
 export async function getQuizBySlug(slug: string) {
-  console.log("Fetching quiz with slug:", slug)
-
   const { data: quiz, error: quizError } = await supabase.from("quizzes").select("*").eq("slug", slug).single()
 
   if (quizError) {
-    console.error("Error fetching quiz by slug:", quizError, "Slug:", slug)
+    console.error("Error fetching quiz by slug:", quizError)
     return null
   }
 
-  // Fetch questions for this quiz
   const { data: questions, error: questionsError } = await supabase.from("questions").select("*").eq("quiz_slug", slug)
 
   if (questionsError) {
-    console.error("Error fetching questions for quiz:", questionsError, "Quiz slug:", slug)
+    console.error("Error fetching questions for quiz:", questionsError)
     return { ...quiz, questions: [] }
   }
 
-  // Parse options for each question
   const parsedQuestions = questions.map((question) => {
     try {
       if (typeof question.options === "string") {
@@ -294,19 +273,17 @@ export async function getQuizById(id: number | string) {
   const { data: quiz, error: quizError } = await supabase.from("quizzes").select("*").eq("id", id).single()
 
   if (quizError) {
-    console.error("Error fetching quiz by id:", quizError, "ID:", id)
+    console.error("Error fetching quiz by id:", quizError)
     throw quizError
   }
 
-  // Fetch questions for this quiz
   const { data: questions, error: questionsError } = await supabase.from("questions").select("*").eq("quiz_id", id)
 
   if (questionsError) {
-    console.error("Error fetching questions for quiz:", questionsError, "Quiz ID:", id)
+    console.error("Error fetching questions for quiz:", questionsError)
     throw questionsError
   }
 
-  // Parse options for each question
   const parsedQuestions = questions.map((question) => {
     try {
       if (typeof question.options === "string") {
@@ -399,7 +376,6 @@ export async function getResources() {
   return data || []
 }
 
-// Client-side supabase
 export async function getClientSupabase() {
   return createClientComponentClient()
 }
