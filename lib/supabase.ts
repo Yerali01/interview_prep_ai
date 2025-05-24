@@ -158,7 +158,7 @@ export async function getCurrentUser() {
 }
 
 // Topic functions - ENSURE THIS IS EXPORTED
-export async function getTopics(): Promise<Topic[]> {
+export async function getTopics() {
   const { data, error } = await supabase.from("topics").select("*").order("created_at", { ascending: false })
 
   if (error) {
@@ -169,7 +169,7 @@ export async function getTopics(): Promise<Topic[]> {
   return data as Topic[]
 }
 
-export async function getTopicBySlug(slug: string): Promise<Topic | null> {
+export async function getTopicBySlug(slug: string) {
   const { data, error } = await supabase.from("topics").select("*").eq("slug", slug).single()
 
   if (error) {
@@ -181,7 +181,7 @@ export async function getTopicBySlug(slug: string): Promise<Topic | null> {
 }
 
 // Definition functions
-export async function getDefinitions(): Promise<Definition[]> {
+export async function getDefinitions() {
   const { data, error } = await supabase.from("definitions").select("*").order("term", { ascending: true })
 
   if (error) {
@@ -192,7 +192,7 @@ export async function getDefinitions(): Promise<Definition[]> {
   return data as Definition[]
 }
 
-export async function getDefinitionByTerm(term: string): Promise<Definition | null> {
+export async function getDefinitionByTerm(term: string) {
   const { data, error } = await supabase.from("definitions").select("*").ilike("term", term).single()
 
   if (error) {
@@ -200,11 +200,11 @@ export async function getDefinitionByTerm(term: string): Promise<Definition | nu
     return null
   }
 
-  return data as Definition
+  return data
 }
 
 // Project functions
-export async function getProjects(): Promise<Project[]> {
+export async function getProjects() {
   const { data, error } = await supabase
     .from("projects")
     .select(
@@ -224,7 +224,7 @@ export async function getProjects(): Promise<Project[]> {
   return data as Project[]
 }
 
-export async function getProjectBySlug(slug: string): Promise<Project | null> {
+export async function getProjectBySlug(slug: string) {
   const { data, error } = await supabase
     .from("projects")
     .select(
@@ -402,4 +402,51 @@ export async function getResources() {
 // Client-side supabase
 export async function getClientSupabase() {
   return createClientComponentClient()
+}
+
+// Helper function for topic recommendations (client-side only)
+export function getTopicRecommendations(
+  allTopics: Topic[],
+  currentSlug: string,
+  level: "junior" | "middle" | "senior",
+): Topic[] {
+  // Filter out the current topic
+  const otherTopics = allTopics.filter((topic) => topic.slug !== currentSlug)
+
+  // First, try to find topics of the same level
+  const sameLevelTopics = otherTopics.filter((topic) => topic.level === level)
+
+  // If we have enough topics of the same level, return a subset
+  if (sameLevelTopics.length >= 3) {
+    return shuffleArray(sameLevelTopics).slice(0, 3)
+  }
+
+  // If we don't have enough topics of the same level, include topics from adjacent levels
+  let recommendedTopics = [...sameLevelTopics]
+
+  // Add topics from adjacent levels if needed
+  if (level === "junior") {
+    const middleTopics = otherTopics.filter((topic) => topic.level === "middle")
+    recommendedTopics = [...recommendedTopics, ...middleTopics]
+  } else if (level === "senior") {
+    const middleTopics = otherTopics.filter((topic) => topic.level === "middle")
+    recommendedTopics = [...recommendedTopics, ...middleTopics]
+  } else {
+    const juniorTopics = otherTopics.filter((topic) => topic.level === "junior")
+    const seniorTopics = otherTopics.filter((topic) => topic.level === "senior")
+    recommendedTopics = [...recommendedTopics, ...juniorTopics, ...seniorTopics]
+  }
+
+  // Shuffle and return up to 3 topics
+  return shuffleArray(recommendedTopics).slice(0, 3)
+}
+
+// Helper function to shuffle an array
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = [...array]
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[newArray[i], newArray[j]] = [newArray[j], newArray[i]]
+  }
+  return newArray
 }
