@@ -65,6 +65,36 @@ export interface ProjectFeature {
   priority: "low" | "medium" | "high"
 }
 
+export type QuizQuestion = {
+  id: string
+  quiz_id: string
+  quiz_slug: string
+  question: string
+  options: Record<string, string> | string
+  correct_answer: string
+  explanation: string
+  category?: string
+}
+
+export type Quiz = {
+  id: string
+  slug: string
+  title: string
+  description: string
+  level: "junior" | "middle" | "senior"
+  questions?: QuizQuestion[]
+}
+
+export type QuizResult = {
+  id: number
+  user_id: string
+  quiz_id: number | string
+  score: number
+  total_questions: number
+  completed_at: string
+  quizzes: Quiz
+}
+
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -114,8 +144,8 @@ export async function getCurrentUser() {
   return user
 }
 
-// Fetch all topics
-export async function getTopics() {
+// Topic functions
+export async function getTopics(): Promise<Topic[]> {
   const { data, error } = await supabase.from("topics").select("*").order("created_at", { ascending: false })
 
   if (error) {
@@ -126,8 +156,7 @@ export async function getTopics() {
   return data as Topic[]
 }
 
-// Fetch a topic by slug
-export async function getTopicBySlug(slug: string) {
+export async function getTopicBySlug(slug: string): Promise<Topic | null> {
   const { data, error } = await supabase.from("topics").select("*").eq("slug", slug).single()
 
   if (error) {
@@ -138,8 +167,8 @@ export async function getTopicBySlug(slug: string) {
   return data as Topic
 }
 
-// Fetch all definitions
-export async function getDefinitions() {
+// Definition functions
+export async function getDefinitions(): Promise<Definition[]> {
   const { data, error } = await supabase.from("definitions").select("*").order("term", { ascending: true })
 
   if (error) {
@@ -150,8 +179,19 @@ export async function getDefinitions() {
   return data as Definition[]
 }
 
-// Projects functions
-export async function getProjects() {
+export async function getDefinitionByTerm(term: string): Promise<Definition | null> {
+  const { data, error } = await supabase.from("definitions").select("*").ilike("term", term).single()
+
+  if (error) {
+    console.error("Error fetching definition:", error)
+    return null
+  }
+
+  return data as Definition
+}
+
+// Project functions
+export async function getProjects(): Promise<Project[]> {
   const { data, error } = await supabase
     .from("projects")
     .select(`
@@ -169,7 +209,7 @@ export async function getProjects() {
   return data as Project[]
 }
 
-export async function getProjectBySlug(slug: string) {
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
   const { data, error } = await supabase
     .from("projects")
     .select(`
@@ -309,7 +349,7 @@ export async function markTopicAsRead(userId: string, topicId: number | string) 
         read_at: new Date(),
       },
     ])
-    .select() // Optional: if you want to return the inserted/updated data
+    .select()
 
   if (error) {
     console.error("Error marking topic as read:", error)
@@ -342,47 +382,7 @@ export async function getResources() {
   return data || []
 }
 
-export async function getDefinitionByTerm(term: string) {
-  const { data, error } = await supabase.from("definitions").select("*").ilike("term", term).single()
-
-  if (error) {
-    console.error("Error fetching definition:", error)
-    return null
-  }
-
-  return data
-}
-
+// Client-side supabase
 export async function getClientSupabase() {
   return createClientComponentClient()
-}
-
-export type QuizQuestion = {
-  id: string
-  quiz_id: string
-  quiz_slug: string
-  question: string
-  options: Record<string, string> | string
-  correct_answer: string
-  explanation: string
-  category?: string
-}
-
-export type Quiz = {
-  id: string
-  slug: string
-  title: string
-  description: string
-  level: "junior" | "middle" | "senior"
-  questions?: QuizQuestion[]
-}
-
-export type QuizResult = {
-  id: number
-  user_id: string
-  quiz_id: number | string
-  score: number
-  total_questions: number
-  completed_at: string
-  quizzes: Quiz
 }
