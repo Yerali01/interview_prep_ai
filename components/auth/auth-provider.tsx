@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import type { User, Session } from "@supabase/supabase-js"
 
-
 interface AuthContextType {
   user: User | null
   session: Session | null
@@ -37,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const {
           data: { session },
-        } = await (await supabase).auth.getSession()
+        } = await supabase.auth.getSession()
         setSession(session)
         setUser(session?.user ?? null)
       } catch (error) {
@@ -65,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const { error } = await (await supabase).auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -75,16 +74,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error
 
-      toast({
-        title: "Sign up successful",
-        description: "A confirmation email has been sent to your email address.",
-      })
+      // Check if user needs email confirmation
+      if (data.user && !data.session) {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to complete your registration.",
+        })
+      } else {
+        toast({
+          title: "Account created successfully",
+          description: "Welcome! You can now start using the app.",
+        })
+      }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to sign up",
+        description: error.message || "Failed to create account",
         variant: "destructive",
       })
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -93,23 +101,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          toast({
+            title: "Email not verified",
+            description: "Please check your email and click the confirmation link before signing in.",
+            variant: "destructive",
+          })
+        } else if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Invalid credentials",
+            description: "Please check your email and password and try again.",
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Sign in failed",
+            description: error.message,
+            variant: "destructive",
+          })
+        }
+        throw error
+      }
 
-      toast({
-        title: "Sign in successful",
-        description: "You have successfully signed in.",
-      })
+      if (data.user) {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
+        })
+      }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign in",
-        variant: "destructive",
-      })
+      // Error already handled above
+      throw error
     } finally {
       setIsLoading(false)
     }
