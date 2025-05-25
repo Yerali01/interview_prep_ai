@@ -17,27 +17,11 @@ import {
   Lightbulb,
   CheckCircle,
   Circle,
+  Package,
+  Copy,
 } from "lucide-react"
-import { getProjectBySlug, type Project } from "@/lib/supabase"
+import { getProjectBySlug, type Project, type Technology, type Feature } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
-
-interface Technology {
-  technology_name: string
-  explanation: string
-  category: string
-  is_required: boolean
-  package_name?: string
-  version_requirement?: string
-  installation_command?: string
-  documentation_url?: string
-  purpose?: string
-}
-
-interface Feature {
-  feature_name: string
-  description: string
-  priority: string
-}
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -54,6 +38,7 @@ export default function ProjectDetailPage() {
       try {
         setLoading(true)
         const projectData = await getProjectBySlug(params.slug as string)
+        console.log("Fetched project data:", projectData) // Debug log
         setProject(projectData)
       } catch (err) {
         setError("Failed to load project")
@@ -105,6 +90,22 @@ export default function ProjectDetailPage() {
     )
   }
 
+  const copyToClipboard = async (text: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({
+        title: "Copied!",
+        description: successMessage,
+      })
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Could not copy to clipboard.",
+        variant: "destructive",
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -143,6 +144,9 @@ export default function ProjectDetailPage() {
   const technologies = (project.technologies as Technology[]) || []
   const features = (project.features as Feature[]) || []
   const groupedTechnologies = groupTechnologiesByCategory(technologies)
+
+  console.log("Technologies:", technologies) // Debug log
+  console.log("Grouped technologies:", groupedTechnologies) // Debug log
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -249,114 +253,131 @@ export default function ProjectDetailPage() {
           )}
 
           {/* Technologies & Packages */}
-          {Object.keys(groupedTechnologies).length > 0 && (
+          {technologies.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Code className="h-5 w-5" />
+                  <Package className="h-5 w-5" />
                   Technologies & Packages
                 </CardTitle>
                 <CardDescription>Flutter packages and concepts you'll use in this project</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {Object.entries(groupedTechnologies).map(([category, techs]) => (
-                    <div key={category}>
-                      <h4 className="font-medium mb-4 text-sm uppercase tracking-wide text-muted-foreground border-b pb-2">
-                        {category}
-                      </h4>
-                      <div className="space-y-4">
-                        {techs.map((tech, index) => (
-                          <div key={index} className="border rounded-lg p-4 space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  {tech.is_required ? (
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                  ) : (
-                                    <Circle className="h-4 w-4 text-muted-foreground" />
-                                  )}
-                                  <h5 className="font-semibold">{tech.technology_name}</h5>
-                                  {tech.is_required && (
-                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
-                                      Required
-                                    </Badge>
-                                  )}
-                                </div>
-
-                                {tech.package_name && (
+                  {Object.keys(groupedTechnologies).length > 0 ? (
+                    Object.entries(groupedTechnologies).map(([category, techs]) => (
+                      <div key={category}>
+                        <h4 className="font-medium mb-4 text-sm uppercase tracking-wide text-muted-foreground border-b pb-2">
+                          {category}
+                        </h4>
+                        <div className="space-y-4">
+                          {techs.map((tech, index) => (
+                            <div key={index} className="border rounded-lg p-4 space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <Badge variant="secondary" className="font-mono text-xs">
-                                      {tech.package_name}
-                                    </Badge>
-                                    {tech.version_requirement && (
-                                      <span className="text-xs text-muted-foreground">{tech.version_requirement}</span>
+                                    {tech.is_required ? (
+                                      <CheckCircle className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Circle className="h-4 w-4 text-muted-foreground" />
                                     )}
-                                    {tech.documentation_url && (
-                                      <Button variant="ghost" size="sm" className="h-6 px-2" asChild>
-                                        <a href={tech.documentation_url} target="_blank" rel="noopener noreferrer">
-                                          <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                      </Button>
+                                    <h5 className="font-semibold">{tech.technology_name}</h5>
+                                    {tech.is_required && (
+                                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                        Required
+                                      </Badge>
                                     )}
                                   </div>
-                                )}
-                              </div>
-                            </div>
 
-                            {/* Purpose */}
-                            {tech.purpose && (
-                              <div className="bg-blue-50 dark:bg-blue-950/30 rounded-md p-3">
-                                <h6 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Purpose</h6>
-                                <p className="text-sm text-blue-800 dark:text-blue-200">{tech.purpose}</p>
-                              </div>
-                            )}
-
-                            {/* Installation Command */}
-                            {tech.installation_command && (
-                              <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-3">
-                                <h6 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                  <Code className="h-3 w-3" />
-                                  Installation
-                                </h6>
-                                <div className="flex items-center gap-2">
-                                  <code className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
-                                    {tech.installation_command}
-                                  </code>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(tech.installation_command || "")
-                                      toast({
-                                        title: "Copied!",
-                                        description: "Installation command copied to clipboard",
-                                      })
-                                    }}
-                                  >
-                                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                      />
-                                    </svg>
-                                  </Button>
+                                  {tech.package_name && (
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Badge variant="secondary" className="font-mono text-xs">
+                                        {tech.package_name}
+                                      </Badge>
+                                      {tech.version_requirement && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {tech.version_requirement}
+                                        </span>
+                                      )}
+                                      {tech.documentation_url && (
+                                        <Button variant="ghost" size="sm" className="h-6 px-2" asChild>
+                                          <a href={tech.documentation_url} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="h-3 w-3" />
+                                          </a>
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            )}
 
-                            {/* Explanation (fallback if no purpose) */}
-                            {!tech.purpose && tech.explanation && (
-                              <p className="text-sm text-muted-foreground">{tech.explanation}</p>
-                            )}
-                          </div>
-                        ))}
+                              {/* Purpose */}
+                              {tech.purpose && (
+                                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-md p-3">
+                                  <h6 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Purpose</h6>
+                                  <p className="text-sm text-blue-800 dark:text-blue-200">{tech.purpose}</p>
+                                </div>
+                              )}
+
+                              {/* Installation Command */}
+                              {tech.installation_command && (
+                                <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-3">
+                                  <h6 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                    <Code className="h-3 w-3" />
+                                    Installation
+                                  </h6>
+                                  <div className="flex items-center gap-2">
+                                    <code className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                                      {tech.installation_command}
+                                    </code>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2"
+                                      onClick={() =>
+                                        copyToClipboard(
+                                          tech.installation_command || "",
+                                          "Installation command copied to clipboard",
+                                        )
+                                      }
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Explanation (fallback if no purpose) */}
+                              {!tech.purpose && tech.explanation && (
+                                <p className="text-sm text-muted-foreground">{tech.explanation}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground">No technologies data available for this project.</p>
                     </div>
-                  ))}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Technologies & Packages
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground">No technologies data available for this project.</p>
+                  <p className="text-sm text-muted-foreground mt-2">Technologies will be added soon.</p>
                 </div>
               </CardContent>
             </Card>
@@ -439,11 +460,7 @@ export default function ProjectDetailPage() {
                       .map((tech) => tech.installation_command)
                       .join("\n")
 
-                    navigator.clipboard.writeText(commands)
-                    toast({
-                      title: "Copied!",
-                      description: "All installation commands copied to clipboard",
-                    })
+                    copyToClipboard(commands, "All installation commands copied to clipboard")
                   }}
                 >
                   Copy All Commands
