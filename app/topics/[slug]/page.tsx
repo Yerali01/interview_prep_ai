@@ -13,6 +13,7 @@ import { useTopics } from "@/contexts/topics-context";
 import { useDefinitions } from "@/contexts/definitions-context";
 import { EnhancedMarkdown } from "@/components/enhanced-markdown";
 import { CodeSyntaxLegend } from "@/components/code-syntax-legend";
+import { useToast } from "@/hooks/use-toast";
 
 interface TopicSection {
   title: string;
@@ -25,6 +26,7 @@ export default function TopicPage() {
   const slug = params?.slug as string;
   const { topics } = useTopics();
   const { definitions } = useDefinitions();
+  const { toast } = useToast();
   const [topic, setTopic] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +93,45 @@ export default function TopicPage() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const openDartPad = (code: string) => {
+    console.log("🚀 Opening DartPad with code:", code);
+
+    // Copy to clipboard
+    navigator.clipboard
+      .writeText(code)
+      .then(() => {
+        console.log("✅ Code copied to clipboard");
+
+        // Open DartPad
+        const dartPadWindow = window.open("https://dartpad.dev/", "_blank");
+
+        if (dartPadWindow) {
+          console.log("✅ DartPad opened successfully");
+          toast({
+            title: "DartPad Opened!",
+            description:
+              "Code copied to clipboard. Paste it in DartPad (Ctrl+V) and click Run.",
+            duration: 5000,
+          });
+        } else {
+          console.log("❌ Failed to open DartPad");
+          toast({
+            title: "Popup Blocked",
+            description: "Please allow popups and try again.",
+            variant: "destructive",
+          });
+        }
+      })
+      .catch(() => {
+        console.log("❌ Failed to copy to clipboard");
+        toast({
+          title: "Manual Copy Required",
+          description: "Please copy the code manually and open dartpad.dev",
+          variant: "destructive",
+        });
+      });
   };
 
   if (loading) {
@@ -194,7 +235,12 @@ export default function TopicPage() {
                         <code>{section.code}</code>
                       </pre>
                     </div>
-                    <Button variant="secondary" size="sm" className="mt-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => openDartPad(section.code)}
+                    >
                       Try it Yourself
                     </Button>
                   </div>
