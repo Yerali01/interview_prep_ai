@@ -64,28 +64,38 @@ export default function QuizPage() {
   }, [slug])
 
   const handleAnswerSelect = (answer: string) => {
+    const currentQuestion = quiz.questions[currentQuestionIndex]
+    const wasCorrectBefore = selectedAnswers[currentQuestionIndex] === currentQuestion.correct_answer
+    const isCorrectNow = answer === currentQuestion.correct_answer
+
     setSelectedAnswers({
       ...selectedAnswers,
       [currentQuestionIndex]: answer,
     })
 
-    // Update correctAnswersCount immediately after selecting an answer
-    const isCorrect = answer === quiz.questions[currentQuestionIndex].correct_answer
-    setCorrectAnswersCount((prevCount) => (isCorrect ? prevCount + 1 : prevCount))
+    // Update correctAnswersCount based on the change
+    setCorrectAnswersCount((prevCount) => {
+      if (wasCorrectBefore && !isCorrectNow) {
+        return prevCount - 1 // Was correct, now wrong
+      } else if (!wasCorrectBefore && isCorrectNow) {
+        return prevCount + 1 // Was wrong, now correct
+      }
+      return prevCount // No change in correctness
+    })
   }
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < quiz.questions.length - 1) {
-      setSelectedAnswers((prevSelectedAnswers) => {
-        const newSelectedAnswers = { ...prevSelectedAnswers }
-        delete newSelectedAnswers[currentQuestionIndex]
-        return newSelectedAnswers
-      })
       setCurrentQuestionIndex(currentQuestionIndex + 1)
       setShowExplanation(false)
     } else {
-      // Calculate score
-      const finalScore = Math.round((correctAnswersCount / quiz.questions.length) * 100)
+      // Calculate final score based on all selected answers
+      const finalCorrectCount = quiz.questions.reduce((count: number, question: QuizQuestion, index: number) => {
+        return selectedAnswers[index] === question.correct_answer ? count + 1 : count
+      }, 0)
+
+      const finalScore = Math.round((finalCorrectCount / quiz.questions.length) * 100)
+      setCorrectAnswersCount(finalCorrectCount)
       setScore(finalScore)
       setQuizCompleted(true)
 
@@ -294,6 +304,24 @@ export default function QuizPage() {
                       )}
                       <div>
                         <p className="font-medium">{question.question}</p>
+                        <div className="mt-2 space-y-1">
+                          <div className="text-sm">
+                            <span className="font-semibold">Your answer: </span>
+                            <span
+                              className={
+                                selectedAnswers[index] === question.correct_answer ? "text-green-600" : "text-red-600"
+                              }
+                            >
+                              {question.options[selectedAnswers[index]] || "Not answered"}
+                            </span>
+                          </div>
+                          {selectedAnswers[index] !== question.correct_answer && (
+                            <div className="text-sm">
+                              <span className="font-semibold">Correct answer: </span>
+                              <span className="text-green-600">{question.options[question.correct_answer]}</span>
+                            </div>
+                          )}
+                        </div>
                         <div className="mt-2">
                           <h3 className="font-semibold text-sm">Explanation:</h3>
                           <p className="text-sm">{question.explanation}</p>
