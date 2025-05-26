@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useMemo } from "react"
 import Markdown from "react-markdown"
@@ -59,7 +59,45 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
     })
   }
 
-  // Custom renderer for text nodes
+  // Enhanced code component that adds tooltips to code content
+  const enhanceCodeWithTooltips = (codeString: string): React.ReactNode => {
+    if (!codeString || typeof codeString !== "string") return codeString
+
+    const terms = Array.from(definitionsMap.keys())
+    if (terms.length === 0) return codeString
+
+    // Sort terms by length (longest first) to avoid partial matches
+    const sortedTerms = terms.sort((a, b) => b.length - a.length)
+
+    // Create regex pattern for code - more flexible matching
+    const pattern = new RegExp(
+      `(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+      "gi",
+    )
+
+    const parts = codeString.split(pattern)
+
+    return parts.map((part, index) => {
+      const lowerPart = part.toLowerCase()
+      const definition = definitionsMap.get(lowerPart)
+
+      if (definition && index % 2 === 1) {
+        // This is a matched term in code
+        return (
+          <DefinitionTooltip key={`code-${definition.id}-${index}`} term={part} definition={definition}>
+            <span className="relative inline-block">
+              {part}
+              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 opacity-50"></span>
+            </span>
+          </DefinitionTooltip>
+        )
+      }
+
+      return part
+    })
+  }
+
+  // Custom renderer for text nodes and code
   const components = {
     // Handle text in paragraphs
     p: ({ children, ...props }: any) => (
@@ -82,6 +120,41 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
     h4: ({ children, ...props }: any) => (
       <h4 {...props}>{typeof children === "string" ? enhanceTextWithTooltips(children) : children}</h4>
     ),
+    // Handle inline code
+    code: ({ children, className, ...props }: any) => {
+      const isInlineCode = !className || !className.includes("language-")
+
+      if (isInlineCode && typeof children === "string") {
+        return (
+          <code {...props} className={`${className || ""} bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm`}>
+            {enhanceCodeWithTooltips(children)}
+          </code>
+        )
+      }
+
+      return (
+        <code {...props} className={className}>
+          {children}
+        </code>
+      )
+    },
+    // Handle code blocks
+    pre: ({ children, ...props }: any) => {
+      // Extract the code content from the pre element
+      const codeElement = React.Children.toArray(children).find((child: any) => child?.type === "code") as any
+
+      if (codeElement && typeof codeElement.props?.children === "string") {
+        const enhancedCode = enhanceCodeWithTooltips(codeElement.props.children)
+
+        return (
+          <pre {...props} className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
+            <code className={codeElement.props.className}>{enhancedCode}</code>
+          </pre>
+        )
+      }
+
+      return <pre {...props}>{children}</pre>
+    },
     // Handle text in other elements
     text: ({ children }: any) => {
       if (typeof children === "string") {

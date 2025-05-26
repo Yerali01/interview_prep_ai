@@ -13,6 +13,7 @@ import { useTopics } from "@/contexts/topics-context"
 import { useDefinitions } from "@/contexts/definitions-context"
 import { EnhancedMarkdown } from "@/components/enhanced-markdown"
 import { CodeSyntaxLegend } from "@/components/code-syntax-legend"
+import { DartPadFAB } from "@/components/dartpad-fab"
 
 interface TopicSection {
   title: string
@@ -132,6 +133,12 @@ export default function TopicPage() {
     console.error("Error parsing content:", e)
   }
 
+  // Extract all code snippets for DartPad
+  const codeSnippets = contentSections
+    .filter((section) => section.code)
+    .map((section) => section.code)
+    .filter(Boolean) as string[]
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mb-6 flex justify-between items-center">
@@ -193,6 +200,9 @@ export default function TopicPage() {
           )}
         </div>
       </motion.div>
+
+      {/* Floating Action Button for DartPad */}
+      <DartPadFAB topicSlug={slug} codeSnippets={codeSnippets} />
     </div>
   )
 }
