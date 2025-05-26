@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { getTopicBySlug } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, RefreshCw } from "lucide-react"
+import { ArrowLeft, RefreshCw, Copy, Play } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { motion } from "framer-motion"
@@ -95,42 +95,109 @@ export default function TopicPage() {
     }
   }
 
+  // Function to prepare code for DartPad
+  const prepareCodeForDartPad = (code: string): string => {
+    const cleanCode = code.trim()
+
+    // Check if it's already a complete program
+    if (cleanCode.includes("void main(") || cleanCode.includes("main(")) {
+      return cleanCode
+    }
+
+    // Check if it's a class definition
+    if (cleanCode.includes("class ") && !cleanCode.includes("void main(")) {
+      return `${cleanCode}
+
+void main() {
+  // Example usage - modify as needed
+  print('Code is ready to run!');
+}`
+    }
+
+    // Check if it's function definitions
+    if (cleanCode.includes("Future<") || cleanCode.includes("Stream<") || cleanCode.includes("async")) {
+      return `${cleanCode}
+
+void main() async {
+  // Example usage - modify as needed
+  print('Async code is ready to run!');
+}`
+    }
+
+    // For simple expressions or statements, wrap in main
+    return `void main() {
+  ${cleanCode}
+}`
+  }
+
   const openDartPadWithCode = (code: string) => {
     console.log("🚀 Opening DartPad with specific code:", code)
 
-    // Clean and prepare the code
-    const cleanCode = code.trim()
+    // Prepare the code to be runnable
+    const runnableCode = prepareCodeForDartPad(code)
+    console.log("📝 Prepared code:", runnableCode)
+
+    // Show warning toast first
+    toast({
+      title: "Opening DartPad...",
+      description: "Code will be copied to your clipboard. Paste it in DartPad and click Run.",
+      duration: 3000,
+    })
 
     // Copy to clipboard
     navigator.clipboard
-      .writeText(cleanCode)
+      .writeText(runnableCode)
       .then(() => {
         console.log("✅ Code copied to clipboard")
 
-        // Open DartPad
-        const dartPadWindow = window.open("https://dartpad.dev/", "_blank")
+        // Open DartPad after a short delay
+        setTimeout(() => {
+          const dartPadWindow = window.open("https://dartpad.dev/", "_blank")
 
-        if (dartPadWindow) {
-          console.log("✅ DartPad opened successfully")
-          toast({
-            title: "DartPad Opened!",
-            description: "Code copied to clipboard. Paste it in DartPad (Ctrl+V) and click Run.",
-            duration: 5000,
-          })
-        } else {
-          console.log("❌ Failed to open DartPad")
-          toast({
-            title: "Popup Blocked",
-            description: "Please allow popups and try again.",
-            variant: "destructive",
-          })
-        }
+          if (dartPadWindow) {
+            console.log("✅ DartPad opened successfully")
+            toast({
+              title: "✅ Ready to Code!",
+              description:
+                "1. Paste the code (Ctrl+V or Cmd+V)\n2. Click the blue 'Run' button\n3. See the output below!",
+              duration: 8000,
+            })
+          } else {
+            console.log("❌ Failed to open DartPad")
+            toast({
+              title: "❌ Popup Blocked",
+              description: "Please allow popups for this site, then try again.",
+              variant: "destructive",
+            })
+          }
+        }, 1000)
       })
       .catch(() => {
         console.log("❌ Failed to copy to clipboard")
         toast({
-          title: "Manual Copy Required",
+          title: "❌ Copy Failed",
           description: "Please copy the code manually and open dartpad.dev",
+          variant: "destructive",
+        })
+      })
+  }
+
+  const copyCode = (code: string) => {
+    const runnableCode = prepareCodeForDartPad(code)
+
+    navigator.clipboard
+      .writeText(runnableCode)
+      .then(() => {
+        toast({
+          title: "📋 Code Copied!",
+          description: "Ready-to-run code copied to clipboard",
+          duration: 3000,
+        })
+      })
+      .catch(() => {
+        toast({
+          title: "❌ Copy Failed",
+          description: "Please copy the code manually",
           variant: "destructive",
         })
       })
@@ -220,8 +287,23 @@ export default function TopicPage() {
                   <div className="my-6">
                     <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                       {/* Code header */}
-                      <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                      <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Example</span>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              copyCode(section.code!)
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Code content */}
@@ -241,11 +323,15 @@ export default function TopicPage() {
                             console.log("Code to open:", section.code)
                             openDartPadWithCode(section.code)
                           }}
-                          className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded text-sm"
+                          className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded text-sm flex items-center gap-2"
                           type="button"
                         >
+                          <Play className="h-4 w-4" />
                           Try it Yourself »
                         </Button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          💡 This will copy ready-to-run code to your clipboard and open DartPad
+                        </p>
                       </div>
                     </div>
                   </div>
