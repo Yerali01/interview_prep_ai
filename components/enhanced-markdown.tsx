@@ -7,7 +7,7 @@ import rehypeHighlight from "rehype-highlight"
 import type { Definition } from "@/lib/supabase"
 import { DefinitionTooltip } from "./definition-tooltip"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 interface EnhancedMarkdownProps {
   content: string
@@ -23,6 +23,7 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
     definitions.forEach((def: Definition) => {
       map.set(def.term.toLowerCase(), def)
     })
+    console.log("Definitions map created:", map)
     return map
   }, [definitions])
 
@@ -57,96 +58,136 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
     })
   }
 
-  // Function to enhance code content with tooltips
-  const enhanceCodeContent = (codeString: string): React.ReactNode => {
+  // Function to process code and add tooltips
+  const processCodeWithTooltips = (codeString: string): React.ReactNode => {
     if (!codeString || typeof codeString !== "string") return codeString
 
     const terms = Array.from(definitionsMap.keys())
     if (terms.length === 0) return codeString
 
-    console.log("Available terms for tooltips:", terms)
-    console.log("Code to enhance:", codeString.substring(0, 100) + "...")
+    console.log("Processing code with tooltips:", codeString.substring(0, 100))
+    console.log("Available terms:", terms)
 
-    const sortedTerms = terms.sort((a, b) => b.length - a.length)
+    // Split code into tokens while preserving structure
+    const lines = codeString.split("\n")
 
-    // Create a more flexible pattern that matches terms in code
-    const escapedTerms = sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-
-    const pattern = new RegExp(`(${escapedTerms.join("|")})`, "gi")
-
-    console.log("Pattern:", pattern)
-
-    const parts = codeString.split(pattern)
-    console.log("Split parts:", parts.slice(0, 10))
-
-    return parts.map((part, index) => {
-      if (!part) return part
-
-      const lowerPart = part.toLowerCase()
-      const definition = definitionsMap.get(lowerPart)
-
-      if (definition && index % 2 === 1) {
-        console.log("Found tooltip term in code:", part)
+    return lines.map((line, lineIndex) => {
+      if (!line.trim()) {
         return (
-          <DefinitionTooltip key={`code-${definition.id}-${index}`} term={part} definition={definition}>
-            <span className="relative inline-block border-b border-dotted border-blue-400 cursor-help">{part}</span>
-          </DefinitionTooltip>
+          <React.Fragment key={lineIndex}>
+            {line}
+            {lineIndex < lines.length - 1 ? "\n" : ""}
+          </React.Fragment>
         )
       }
 
-      return part
+      // Process each line for tooltip terms
+      const processedLine: React.ReactNode[] = []
+      const currentIndex = 0
+
+      // Find all matches in this line
+      const sortedTerms = terms.sort((a, b) => b.length - a.length)
+      const pattern = new RegExp(
+        `(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+        "gi",
+      )
+
+      let match
+      let lastIndex = 0
+
+      while ((match = pattern.exec(line)) !== null) {
+        // Add text before the match
+        if (match.index > lastIndex) {
+          processedLine.push(line.substring(lastIndex, match.index))
+        }
+
+        // Check if this is a real definition
+        const matchedTerm = match[0]
+        const definition = definitionsMap.get(matchedTerm.toLowerCase())
+
+        if (definition) {
+          console.log("Found tooltip term in code:", matchedTerm)
+          processedLine.push(
+            <DefinitionTooltip key={`${lineIndex}-${match.index}`} term={matchedTerm} definition={definition}>
+              <span className="relative inline-block border-b border-dotted border-blue-400 cursor-help hover:border-blue-600">
+                {matchedTerm}
+              </span>
+            </DefinitionTooltip>,
+          )
+        } else {
+          processedLine.push(matchedTerm)
+        }
+
+        lastIndex = match.index + match[0].length
+      }
+
+      // Add remaining text
+      if (lastIndex < line.length) {
+        processedLine.push(line.substring(lastIndex))
+      }
+
+      // If no matches found, just return the line
+      if (processedLine.length === 0) {
+        processedLine.push(line)
+      }
+
+      return (
+        <React.Fragment key={lineIndex}>
+          {processedLine}
+          {lineIndex < lines.length - 1 ? "\n" : ""}
+        </React.Fragment>
+      )
     })
   }
 
-  const openDartPad = (code: string) => {
-    console.log("Opening DartPad with code:", code)
+  const openDartPad = async (code: string) => {
+    console.log("=== DartPad Button Clicked ===")
+    console.log("Code to open:", code)
 
     try {
       // Clean the code
       const cleanCode = code.trim()
+      console.log("Clean code:", cleanCode)
 
-      // Create a basic Dart main function if the code doesn't have one
+      // Prepare Dart code
       let dartCode = cleanCode
       if (!cleanCode.includes("void main()") && !cleanCode.includes("main()")) {
-        dartCode = `void main() {
-  ${cleanCode}
-}`
+        dartCode = `void main() {\n  ${cleanCode}\n}`
       }
 
       console.log("Final Dart code:", dartCode)
 
-      // Open DartPad with the code
-      const dartPadUrl = `https://dartpad.dev/`
+      // Copy to clipboard first
+      try {
+        await navigator.clipboard.writeText(dartCode)
+        console.log("Code copied to clipboard successfully")
+      } catch (clipboardError) {
+        console.error("Clipboard error:", clipboardError)
+      }
+
+      // Open DartPad
+      const dartPadUrl = "https://dartpad.dev/"
+      console.log("Opening DartPad URL:", dartPadUrl)
+
       const newWindow = window.open(dartPadUrl, "_blank", "noopener,noreferrer")
+      console.log("Window opened:", !!newWindow)
 
       if (newWindow) {
-        // Copy code to clipboard
-        navigator.clipboard
-          .writeText(dartCode)
-          .then(() => {
-            toast({
-              title: "DartPad opened!",
-              description: "Code copied to clipboard. Paste it in DartPad (Ctrl+V) and click Run.",
-              duration: 6000,
-            })
-          })
-          .catch((err) => {
-            console.error("Failed to copy to clipboard:", err)
-            toast({
-              title: "DartPad opened",
-              description: "Please copy the code manually from the code block.",
-              variant: "destructive",
-            })
-          })
-      } else {
         toast({
-          title: "Popup blocked",
+          title: "DartPad Opened!",
+          description: "Code copied to clipboard. Paste it in DartPad (Ctrl+V) and click Run.",
+          duration: 8000,
+        })
+      } else {
+        console.error("Failed to open window - popup blocked")
+        toast({
+          title: "Popup Blocked",
           description: "Please allow popups for this site to open DartPad.",
           variant: "destructive",
         })
       }
     } catch (error) {
-      console.error("Error opening DartPad:", error)
+      console.error("Error in openDartPad:", error)
       toast({
         title: "Error",
         description: "Failed to open DartPad. Please try again.",
@@ -186,15 +227,6 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
         )
       }
 
-      // For code blocks, enhance with tooltips
-      if (typeof children === "string") {
-        return (
-          <code {...props} className={className}>
-            {enhanceCodeContent(children)}
-          </code>
-        )
-      }
-
       return (
         <code {...props} className={className}>
           {children}
@@ -202,12 +234,20 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
       )
     },
     pre: ({ children, ...props }: any) => {
-      const codeElement = React.Children.toArray(children).find((child: any) => child?.type === "code") as any
+      // Extract code content
+      let codeContent = ""
+      let codeClassName = ""
 
-      if (codeElement && typeof codeElement.props?.children === "string") {
-        const codeContent = codeElement.props.children
-        console.log("Pre block code content:", codeContent)
+      React.Children.forEach(children, (child: any) => {
+        if (child?.type === "code") {
+          codeContent = child.props?.children || ""
+          codeClassName = child.props?.className || ""
+        }
+      })
 
+      console.log("Pre block detected with code:", codeContent.substring(0, 100))
+
+      if (codeContent) {
         return (
           <div className="my-6">
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
@@ -216,22 +256,18 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Example</span>
               </div>
 
-              {/* Code content */}
+              {/* Code content with tooltips */}
               <div className="relative">
-                <pre
-                  {...props}
-                  className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500"
-                >
-                  <code className={codeElement.props.className}>{enhanceCodeContent(codeContent)}</code>
+                <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500">
+                  <code className={codeClassName}>{processCodeWithTooltips(codeContent)}</code>
                 </pre>
               </div>
 
               {/* Try it yourself button */}
               <div className="p-4 bg-gray-50 dark:bg-gray-800">
                 <Button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    console.log("Button clicked, code:", codeContent)
+                  onClick={() => {
+                    console.log("=== BUTTON CLICKED ===")
                     openDartPad(codeContent)
                   }}
                   className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded text-sm transition-colors"
