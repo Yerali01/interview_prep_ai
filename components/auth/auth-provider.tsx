@@ -36,12 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const {
           data: { session },
+          error,
         } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error("Error getting session:", error)
+        }
+
         setSession(session)
         setUser(session?.user ?? null)
       } catch (error) {
         console.error("Error getting auth session:", error)
-        // Continue with null user/session on error
       } finally {
         setIsLoading(false)
       }
@@ -51,47 +56,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email)
       setSession(session)
       setUser(session?.user ?? null)
+
+      if (event === "SIGNED_IN") {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
+        })
+      }
+
+      if (event === "SIGNED_OUT") {
+        toast({
+          title: "Signed out",
+          description: "You have been signed out successfully.",
+        })
+      }
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [supabase, toast])
 
   const signUp = async (email: string, password: string) => {
     setIsLoading(true)
     try {
+      console.log("Attempting to sign up with email:", email)
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/sign-up-success`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
-      if (error) throw error
+      console.log("Sign up response:", { data, error })
+
+      if (error) {
+        console.error("Sign up error:", error)
+
+        // Handle specific error cases
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "Account already exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive",
+          })
+        } else if (error.message.includes("Invalid email")) {
+          toast({
+            title: "Invalid email",
+            description: "Please enter a valid email address.",
+            variant: "destructive",
+          })
+        } else if (error.message.includes("Password")) {
+          toast({
+            title: "Password error",
+            description: error.message,
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Sign up failed",
+            description: error.message || "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          })
+        }
+        throw error
+      }
 
       // Check if user needs email confirmation
       if (data.user && !data.session) {
+        console.log("User created, email confirmation required")
         toast({
           title: "Check your email",
-          description: "We've sent you a confirmation link to complete your registration.",
+          description:
+            "We've sent you a confirmation link. Please check your email and click the link to complete your registration.",
+          duration: 8000,
         })
-      } else {
+      } else if (data.user && data.session) {
+        console.log("User created and automatically signed in")
         toast({
           title: "Account created successfully",
           description: "Welcome! You can now start using the app.",
         })
+      } else {
+        console.log("Unexpected sign up result:", data)
+        toast({
+          title: "Sign up completed",
+          description: "Please check your email for further instructions.",
+        })
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create account",
-        variant: "destructive",
-      })
+      console.error("Sign up error in catch:", error)
+      // Error already handled above, just re-throw
       throw error
     } finally {
       setIsLoading(false)
@@ -101,12 +162,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true)
     try {
+      console.log("Attempting to sign in with email:", email)
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log("Sign in response:", { data, error })
+
       if (error) {
+        console.error("Sign in error:", error)
+
         if (error.message.includes("Email not confirmed")) {
           toast({
             title: "Email not verified",
@@ -122,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           toast({
             title: "Sign in failed",
-            description: error.message,
+            description: error.message || "An unexpected error occurred. Please try again.",
             variant: "destructive",
           })
         }
@@ -130,13 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.user) {
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully signed in.",
-        })
+        console.log("Sign in successful for user:", data.user.email)
+        // Toast will be shown by the auth state change listener
       }
     } catch (error: any) {
-      // Error already handled above
+      console.error("Sign in error in catch:", error)
       throw error
     } finally {
       setIsLoading(false)
@@ -148,19 +213,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut()
 
-      if (error) throw error
+      if (error) {
+        console.error("Sign out error:", error)
+        toast({
+          title: "Sign out failed",
+          description: error.message || "Failed to sign out",
+          variant: "destructive",
+        })
+        throw error
+      }
 
-      toast({
-        title: "Sign out successful",
-        description: "You have successfully signed out.",
-      })
       router.push("/")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign out",
-        variant: "destructive",
-      })
+      console.error("Sign out error in catch:", error)
     } finally {
       setIsLoading(false)
     }

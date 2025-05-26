@@ -7,7 +7,6 @@ import rehypeHighlight from "rehype-highlight"
 import type { Definition } from "@/lib/supabase"
 import { DefinitionTooltip } from "./definition-tooltip"
 import { Button } from "@/components/ui/button"
-import { Play, Copy } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface EnhancedMarkdownProps {
@@ -58,78 +57,68 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
     })
   }
 
-  // Function to enhance code content with tooltips
-  const enhanceCodeContent = (codeString: string): React.ReactNode[] => {
-    if (!codeString || typeof codeString !== "string") return [codeString]
+  // Function to enhance code content with tooltips - more aggressive matching
+  const enhanceCodeContent = (codeString: string): React.ReactNode => {
+    if (!codeString || typeof codeString !== "string") return codeString
 
     const terms = Array.from(definitionsMap.keys())
-    if (terms.length === 0) return [codeString]
+    if (terms.length === 0) return codeString
 
     const sortedTerms = terms.sort((a, b) => b.length - a.length)
 
-    // Split by lines first to preserve code structure
-    const lines = codeString.split("\n")
+    // More flexible pattern for code - matches terms even without word boundaries
+    const pattern = new RegExp(
+      `(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+      "gi",
+    )
 
-    return lines.map((line, lineIndex) => {
-      if (!line.trim())
-        return (
-          <React.Fragment key={lineIndex}>
-            {line}
-            {lineIndex < lines.length - 1 ? "\n" : ""}
-          </React.Fragment>
+    const parts = codeString.split(pattern)
+    const result: React.ReactNode[] = []
+
+    parts.forEach((part, index) => {
+      const lowerPart = part.toLowerCase()
+      const definition = definitionsMap.get(lowerPart)
+
+      if (definition && pattern.test(part)) {
+        result.push(
+          <DefinitionTooltip key={`code-${definition.id}-${index}`} term={part} definition={definition}>
+            <span className="relative inline-block cursor-help border-b border-dotted border-blue-400/60 hover:border-blue-400">
+              {part}
+            </span>
+          </DefinitionTooltip>,
         )
-
-      // Create pattern for this line
-      const pattern = new RegExp(
-        `(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
-        "gi",
-      )
-
-      const parts = line.split(pattern)
-      const enhancedLine = parts.map((part, partIndex) => {
-        const lowerPart = part.toLowerCase()
-        const definition = definitionsMap.get(lowerPart)
-
-        if (definition && pattern.test(part)) {
-          return (
-            <DefinitionTooltip key={`${lineIndex}-${partIndex}`} term={part} definition={definition}>
-              <span className="relative">
-                {part}
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400/30"></span>
-              </span>
-            </DefinitionTooltip>
-          )
-        }
-
-        return part
-      })
-
-      return (
-        <React.Fragment key={lineIndex}>
-          {enhancedLine}
-          {lineIndex < lines.length - 1 ? "\n" : ""}
-        </React.Fragment>
-      )
+      } else {
+        result.push(part)
+      }
     })
+
+    return result
   }
 
   const openDartPad = (code: string) => {
+    // Clean the code - remove any extra whitespace and ensure proper formatting
+    const cleanCode = code.trim()
+
+    // Create DartPad URL with the code embedded
     const dartPadUrl = `https://dartpad.dev/?${new URLSearchParams({
       theme: "dark",
       run: "true",
       split: "60",
     }).toString()}`
 
+    // Open DartPad in new tab
     const newWindow = window.open(dartPadUrl, "_blank")
 
     if (newWindow) {
+      // Copy code to clipboard and show instructions
       setTimeout(() => {
         navigator.clipboard
-          .writeText(code)
+          .writeText(cleanCode)
           .then(() => {
             toast({
-              title: "Code copied!",
-              description: "Code copied to clipboard. Paste it in DartPad and click Run.",
+              title: "Code copied to clipboard!",
+              description: "DartPad opened in new tab. Paste the code (Ctrl+V) and click Run.",
+              duration: 5000,
             })
           })
           .catch(() => {
@@ -140,25 +129,13 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
             })
           })
       }, 1000)
+    } else {
+      toast({
+        title: "Popup blocked",
+        description: "Please allow popups for this site to open DartPad.",
+        variant: "destructive",
+      })
     }
-  }
-
-  const copyCode = (code: string) => {
-    navigator.clipboard
-      .writeText(code)
-      .then(() => {
-        toast({
-          title: "Copied!",
-          description: "Code copied to clipboard.",
-        })
-      })
-      .catch(() => {
-        toast({
-          title: "Copy failed",
-          description: "Failed to copy code to clipboard.",
-          variant: "destructive",
-        })
-      })
   }
 
   // Custom renderer for components
@@ -206,29 +183,32 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
         const enhancedCode = enhanceCodeContent(codeContent)
 
         return (
-          <div className="relative group">
-            <pre {...props} className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto pr-24">
-              <code className={codeElement.props.className}>{enhancedCode}</code>
-            </pre>
-            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => copyCode(codeContent)}
-                className="h-8 w-8 p-0"
-                title="Copy code"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => openDartPad(codeContent)}
-                className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
-                title="Try in DartPad"
-              >
-                <Play className="h-4 w-4" />
-              </Button>
+          <div className="my-6">
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              {/* Code header */}
+              <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Example</span>
+              </div>
+
+              {/* Code content */}
+              <div className="relative">
+                <pre
+                  {...props}
+                  className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500"
+                >
+                  <code className={codeElement.props.className}>{enhancedCode}</code>
+                </pre>
+              </div>
+
+              {/* Try it yourself button */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-800">
+                <Button
+                  onClick={() => openDartPad(codeContent)}
+                  className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded text-sm"
+                >
+                  Try it Yourself »
+                </Button>
+              </div>
             </div>
           </div>
         )
