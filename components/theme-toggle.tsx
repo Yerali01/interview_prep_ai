@@ -1,6 +1,6 @@
 "use client"
 import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-context"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -8,7 +8,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const [animating, setAnimating] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const circleRef = useRef<HTMLDivElement>(null)
 
@@ -48,15 +47,13 @@ export default function ThemeToggle() {
     }
 
     // Start animation
-    setAnimating(true)
     circleRef.current.style.transform = `scale(${maxRadius / 5})`
 
     // Set theme immediately to ensure it changes
-    setTheme(newTheme)
+    setTheme(newTheme as "dark" | "light" | "system")
 
     // Reset animation after it completes
     setTimeout(() => {
-      setAnimating(false)
       if (circleRef.current) {
         circleRef.current.style.transform = "scale(0)"
       }

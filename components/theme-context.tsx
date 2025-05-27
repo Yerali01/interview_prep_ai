@@ -1,10 +1,7 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
-import { useAuth } from "./auth/auth-provider"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 type Theme = "dark" | "light" | "system"
 
@@ -27,8 +24,14 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({ children, defaultTheme = "system", ...props }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(defaultTheme)
-  const { user } = useAuth()
-  const supabase = createClientComponentClient()
+
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as Theme
+    if (savedTheme && ["dark", "light", "system"].includes(savedTheme)) {
+      setTheme(savedTheme)
+    }
+  }, [])
 
   // Apply theme to document
   useEffect(() => {
@@ -44,36 +47,10 @@ export function ThemeProvider({ children, defaultTheme = "system", ...props }: T
     root.classList.add(theme)
   }, [theme])
 
-  // Load theme from user preferences if logged in
-  useEffect(() => {
-    const loadUserTheme = async () => {
-      if (user) {
-        try {
-          const { data, error } = await supabase.from("users").select("theme").eq("id", user.id).single()
-
-          if (data && data.theme) {
-            setTheme(data.theme as Theme)
-          }
-        } catch (error) {
-          console.error("Error loading user theme:", error)
-        }
-      }
-    }
-
-    loadUserTheme()
-  }, [user, supabase])
-
-  // Save theme to user preferences when changed
-  const updateTheme = async (newTheme: Theme) => {
+  // Save theme to localStorage when changed
+  const updateTheme = (newTheme: Theme) => {
     setTheme(newTheme)
-
-    if (user) {
-      try {
-        await supabase.from("users").update({ theme: newTheme }).eq("id", user.id)
-      } catch (error) {
-        console.error("Error saving user theme:", error)
-      }
-    }
+    localStorage.setItem("theme", newTheme)
   }
 
   return (
