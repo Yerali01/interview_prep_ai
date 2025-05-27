@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { type AIMessage, getAIResponse, useSpeechRecognition, INTERVIEW_SYSTEM_PROMPT } from "@/lib/ai-utils"
-import { Mic, MicOff, Send, Bot, Loader2 } from "lucide-react"
+import { Mic, MicOff, Send, Bot, Loader2, Volume2 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation"
 export const dynamic = "force-dynamic"
 
 type InterviewLevel = "junior" | "middle" | "senior"
+type InterviewMode = "text" | "speech"
 
 export default function InterviewPage() {
   const [messages, setMessages] = useState<AIMessage[]>([])
@@ -26,6 +27,7 @@ export default function InterviewPage() {
   const [isFinished, setIsFinished] = useState(false)
   const [questionCount, setQuestionCount] = useState(0)
   const [level, setLevel] = useState<InterviewLevel>("junior")
+  const [mode, setMode] = useState<InterviewMode>("text")
   const [assessment, setAssessment] = useState<string | null>(null)
   const { isListening, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition()
   const { user } = useAuth()
@@ -41,6 +43,12 @@ export default function InterviewPage() {
 
   // Start the interview
   const startInterview = async () => {
+    if (mode === "speech") {
+      // Redirect to speech interview page
+      router.push(`/interview/speech?level=${level}`)
+      return
+    }
+
     setIsLoading(true)
     setIsStarted(true)
     setMessages([])
@@ -154,7 +162,8 @@ export default function InterviewPage() {
           <CardHeader>
             <CardTitle>Start a Flutter Technical Interview</CardTitle>
             <CardDescription>
-              Practice your Flutter interview skills with our AI interviewer. Choose your experience level below.
+              Practice your Flutter interview skills with our AI interviewer. Choose your experience level and interview
+              mode below.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -186,14 +195,46 @@ export default function InterviewPage() {
               </RadioGroup>
             </div>
 
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-3">Select interview mode:</h3>
+              <RadioGroup
+                value={mode}
+                onValueChange={(value) => setMode(value as InterviewMode)}
+                className="flex flex-col space-y-3"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="text" id="text" />
+                  <Label htmlFor="text" className="font-medium">
+                    Text Mode - Type your answers
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="speech" id="speech" />
+                  <Label htmlFor="speech" className="font-medium">
+                    Speech Mode - Speak your answers (Voice only)
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div className="bg-muted p-4 rounded-md">
               <h4 className="font-medium mb-2">What to expect:</h4>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>10 technical questions about Flutter and Dart</li>
-                <li>Real-time feedback on your answers</li>
-                <li>Comprehensive assessment of your skills at the end</li>
-                <li>Questions tailored to your selected experience level</li>
-              </ul>
+              {mode === "text" ? (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>10 technical questions about Flutter and Dart</li>
+                  <li>Type your answers in the text area</li>
+                  <li>Real-time feedback on your answers</li>
+                  <li>Comprehensive assessment of your skills at the end</li>
+                </ul>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>10 technical questions spoken by AI interviewer</li>
+                  <li>Speak your answers naturally - no typing required</li>
+                  <li>Voice-only conversation experience</li>
+                  <li>Practice your verbal communication skills</li>
+                  <li>Comprehensive spoken assessment at the end</li>
+                </ul>
+              )}
             </div>
           </CardContent>
           <CardFooter>
@@ -205,8 +246,8 @@ export default function InterviewPage() {
                 </>
               ) : (
                 <>
-                  <Bot className="mr-2 h-4 w-4" />
-                  Start Interview
+                  {mode === "speech" ? <Volume2 className="mr-2 h-4 w-4" /> : <Bot className="mr-2 h-4 w-4" />}
+                  Start {mode === "speech" ? "Speech" : "Text"} Interview
                 </>
               )}
             </Button>
