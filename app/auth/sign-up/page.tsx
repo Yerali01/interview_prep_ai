@@ -12,12 +12,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState("")
   const [generalError, setGeneralError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -67,11 +69,11 @@ export default function SignUpPage() {
       console.log("✅ Sign up function completed successfully")
       setShowSuccess(true)
 
-      // Don't redirect immediately, let user see the success message
+      // Redirect to home page after successful signup (no email verification needed)
       setTimeout(() => {
-        console.log("🔄 Redirecting to success page...")
-        router.push("/auth/sign-up-success")
-      }, 2000)
+        console.log("🔄 Redirecting to home page...")
+        router.push("/")
+      }, 1500)
     } catch (error: any) {
       console.error("❌ Sign up form error:", error)
       console.error("Error message:", error.message)
@@ -109,9 +111,7 @@ export default function SignUpPage() {
 
               {showSuccess && (
                 <Alert className="border-green-200 bg-green-50 text-green-800">
-                  <AlertDescription>
-                    Account created successfully! Please check your email for a confirmation link.
-                  </AlertDescription>
+                  <AlertDescription>Account created successfully! Redirecting you to the home page...</AlertDescription>
                 </Alert>
               )}
 
@@ -127,29 +127,65 @@ export default function SignUpPage() {
                   disabled={isSubmitting}
                 />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="At least 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={isSubmitting}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 6 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isSubmitting}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-500" />
+                    )}
+                  </Button>
+                </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={isSubmitting}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    disabled={isSubmitting}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-500" />
+                    )}
+                  </Button>
+                </div>
                 {passwordError && <p className="text-sm text-red-500">{passwordError}</p>}
               </div>
             </CardContent>

@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "SIGNED_IN") {
         console.log("✅ AuthProvider: User signed in successfully")
         toast({
-          title: "Welcome back!",
+          title: "Welcome!",
           description: "You have successfully signed in.",
         })
       }
@@ -86,10 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (event === "SIGNED_UP") {
         console.log("✅ AuthProvider: User signed up successfully")
-      }
-
-      if (event === "TOKEN_REFRESHED") {
-        console.log("🔄 AuthProvider: Token refreshed")
+        toast({
+          title: "Account created!",
+          description: "Welcome to the platform! You can now start using all features.",
+        })
       }
     })
 
@@ -103,23 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log("🚀 AuthProvider: Starting sign up process...")
     console.log("📧 Email:", email)
     console.log("🔒 Password length:", password.length)
-    console.log("🌐 Current origin:", window.location.origin)
 
     setIsLoading(true)
     try {
       console.log("📤 AuthProvider: Sending sign up request to Supabase...")
 
-      const signUpData = {
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      }
-
-      console.log("📋 AuthProvider: Sign up data:", signUpData)
-
-      const { data, error } = await supabase.auth.signUp(signUpData)
+      })
 
       console.log("📥 AuthProvider: Sign up response received")
       console.log("✅ Data:", data)
@@ -133,76 +125,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           cause: error.cause,
         })
 
-        // Handle specific error cases
+        let errorMessage = "An unexpected error occurred. Please try again."
+
         if (error.message.includes("User already registered")) {
-          console.log("⚠️ AuthProvider: User already exists")
-          toast({
-            title: "Account already exists",
-            description: "An account with this email already exists. Please sign in instead.",
-            variant: "destructive",
-          })
+          errorMessage = "An account with this email already exists. Please sign in instead."
         } else if (error.message.includes("Invalid email")) {
-          console.log("⚠️ AuthProvider: Invalid email format")
-          toast({
-            title: "Invalid email",
-            description: "Please enter a valid email address.",
-            variant: "destructive",
-          })
+          errorMessage = "Please enter a valid email address."
         } else if (error.message.includes("Password")) {
-          console.log("⚠️ AuthProvider: Password error")
-          toast({
-            title: "Password error",
-            description: error.message,
-            variant: "destructive",
-          })
+          errorMessage = error.message
+        } else if (error.message.includes("weak")) {
+          errorMessage = "Password is too weak. Please choose a stronger password."
+        } else if (error.message.includes("rate limit")) {
+          errorMessage = "Too many attempts. Please wait a moment and try again."
         } else {
-          console.log("⚠️ AuthProvider: General sign up error")
-          toast({
-            title: "Sign up failed",
-            description: error.message || "An unexpected error occurred. Please try again.",
-            variant: "destructive",
-          })
+          errorMessage = error.message || errorMessage
         }
-        throw error
+
+        toast({
+          title: "Sign up failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+
+        throw new Error(errorMessage)
       }
 
-      // Check if user needs email confirmation
-      if (data.user && !data.session) {
-        console.log("📧 AuthProvider: User created, email confirmation required")
+      if (data.user) {
+        console.log("✅ AuthProvider: User created successfully")
         console.log("👤 User ID:", data.user.id)
         console.log("📧 User email:", data.user.email)
-        console.log("✅ Email confirmed:", data.user.email_confirmed_at)
-        console.log("📅 Created at:", data.user.created_at)
+        console.log("🎫 Session:", data.session ? "Created" : "No session")
 
-        toast({
-          title: "Check your email",
-          description:
-            "We've sent you a confirmation link. Please check your email and click the link to complete your registration.",
-          duration: 8000,
-        })
-      } else if (data.user && data.session) {
-        console.log("✅ AuthProvider: User created and automatically signed in")
-        console.log("👤 User:", data.user.email)
-        console.log("🎫 Session:", data.session.access_token ? "Present" : "Missing")
-
-        toast({
-          title: "Account created successfully",
-          description: "Welcome! You can now start using the app.",
-        })
+        // Since email verification is disabled, user should be signed in immediately
+        if (data.session) {
+          console.log("✅ AuthProvider: User automatically signed in")
+          toast({
+            title: "Account created successfully!",
+            description: "Welcome! You can now start using the app.",
+          })
+        } else {
+          console.log("⚠️ AuthProvider: User created but no session")
+          toast({
+            title: "Account created",
+            description: "Your account has been created successfully.",
+          })
+        }
       } else {
-        console.log("⚠️ AuthProvider: Unexpected sign up result")
-        console.log("👤 User:", data.user)
-        console.log("🎫 Session:", data.session)
-
-        toast({
-          title: "Sign up completed",
-          description: "Please check your email for further instructions.",
-        })
+        console.log("⚠️ AuthProvider: No user data received")
+        throw new Error("Failed to create account. Please try again.")
       }
     } catch (error: any) {
       console.error("💥 AuthProvider: Sign up error in catch block:", error)
-      console.error("💥 Error stack:", error.stack)
-      // Error already handled above, just re-throw
       throw error
     } finally {
       setIsLoading(false)
@@ -234,36 +207,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: error.name,
         })
 
-        if (error.message.includes("Email not confirmed")) {
-          console.log("⚠️ AuthProvider: Email not confirmed")
-          toast({
-            title: "Email not verified",
-            description: "Please check your email and click the confirmation link before signing in.",
-            variant: "destructive",
-          })
-        } else if (error.message.includes("Invalid login credentials")) {
-          console.log("⚠️ AuthProvider: Invalid credentials")
-          toast({
-            title: "Invalid credentials",
-            description: "Please check your email and password and try again.",
-            variant: "destructive",
-          })
+        let errorMessage = "An unexpected error occurred. Please try again."
+
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again."
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email address before signing in."
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Too many sign in attempts. Please wait a moment and try again."
+        } else if (error.message.includes("User not found")) {
+          errorMessage = "No account found with this email address."
         } else {
-          console.log("⚠️ AuthProvider: General sign in error")
-          toast({
-            title: "Sign in failed",
-            description: error.message || "An unexpected error occurred. Please try again.",
-            variant: "destructive",
-          })
+          errorMessage = error.message || errorMessage
         }
-        throw error
+
+        toast({
+          title: "Sign in failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+
+        throw new Error(errorMessage)
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         console.log("✅ AuthProvider: Sign in successful")
         console.log("👤 User:", data.user.email)
-        console.log("🎫 Session:", data.session?.access_token ? "Present" : "Missing")
+        console.log("🎫 Session:", data.session.access_token ? "Present" : "Missing")
         // Toast will be shown by the auth state change listener
+      } else {
+        console.log("⚠️ AuthProvider: Sign in completed but missing user or session")
+        throw new Error("Sign in failed. Please try again.")
       }
     } catch (error: any) {
       console.error("💥 AuthProvider: Sign in error in catch block:", error)
