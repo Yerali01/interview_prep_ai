@@ -11,9 +11,9 @@ import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Loader2 } from "lucide-react"
 import { getClientSupabase } from "@/lib/supabase"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
-export default async function ResetPasswordPage() {
+export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
@@ -21,26 +21,46 @@ export default async function ResetPasswordPage() {
   const [isReady, setIsReady] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = getClientSupabase()
 
   useEffect(() => {
+    console.log("🔧 ResetPassword: Initializing...")
+
     // Check if we have access to the hash fragment
     const checkSession = async () => {
-      const { data, error } = await (await supabase).auth.getSession()
-      if (error || !data.session) {
+      try {
+        console.log("🔧 ResetPassword: Getting client supabase...")
+        const supabase = getClientSupabase()
+
+        console.log("🔧 ResetPassword: Checking session...")
+        const { data, error } = await supabase.auth.getSession()
+
+        console.log("🔧 ResetPassword: Session check result:", { data, error })
+
+        if (error || !data.session) {
+          console.log("❌ ResetPassword: Invalid or expired link")
+          toast({
+            title: "Invalid or expired link",
+            description: "Please request a new password reset link",
+            variant: "destructive",
+          })
+          router.push("/auth/forgot-password")
+        } else {
+          console.log("✅ ResetPassword: Valid session found")
+          setIsReady(true)
+        }
+      } catch (error) {
+        console.error("💥 ResetPassword: Error checking session:", error)
         toast({
-          title: "Invalid or expired link",
-          description: "Please request a new password reset link",
+          title: "Error",
+          description: "An error occurred. Please try again.",
           variant: "destructive",
         })
         router.push("/auth/forgot-password")
-      } else {
-        setIsReady(true)
       }
     }
 
     checkSession()
-  }, [router, (await supabase).auth, toast])
+  }, [router, toast])
 
   const validatePassword = () => {
     if (password !== confirmPassword) {
@@ -57,14 +77,29 @@ export default async function ResetPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validatePassword()) return
+    console.log("🚀 ResetPassword: Form submitted")
+
+    if (!validatePassword()) {
+      console.log("❌ ResetPassword: Password validation failed")
+      return
+    }
 
     try {
       setIsSubmitting(true)
-      const { error } = await (await supabase).auth.updateUser({ password })
+      console.log("🔧 ResetPassword: Getting client supabase...")
+      const supabase = getClientSupabase()
 
-      if (error) throw error
+      console.log("📤 ResetPassword: Updating password...")
+      const { error } = await supabase.auth.updateUser({ password })
 
+      console.log("📥 ResetPassword: Update response:", { error })
+
+      if (error) {
+        console.error("❌ ResetPassword: Update error:", error)
+        throw error
+      }
+
+      console.log("✅ ResetPassword: Password updated successfully")
       toast({
         title: "Password updated",
         description: "Your password has been successfully reset",
@@ -72,6 +107,7 @@ export default async function ResetPasswordPage() {
 
       router.push("/auth/sign-in")
     } catch (error: any) {
+      console.error("💥 ResetPassword: Error:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to reset password",

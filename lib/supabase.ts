@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 // Define types for our data
 export interface Topic {
@@ -98,46 +99,79 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Export the client component client function
+export function getClientSupabase() {
+  return createClientComponentClient()
+}
+
 // Auth functions
 export async function signUp(email: string, password: string) {
+  console.log("🚀 supabase.ts: signUp called with email:", email)
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+    },
   })
+
+  console.log("📥 supabase.ts: signUp response:", { data, error })
   return { data, error }
 }
 
 export async function signIn(email: string, password: string) {
+  console.log("🚀 supabase.ts: signIn called with email:", email)
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
+
+  console.log("📥 supabase.ts: signIn response:", { data, error })
   return { data, error }
 }
 
 export async function signOut() {
+  console.log("🚀 supabase.ts: signOut called")
+
   const { error } = await supabase.auth.signOut()
+
+  console.log("📥 supabase.ts: signOut response:", { error })
   return { error }
 }
 
 export async function resetPassword(email: string) {
+  console.log("🚀 supabase.ts: resetPassword called with email:", email)
+
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${window.location.origin}/auth/reset-password`,
   })
+
+  console.log("📥 supabase.ts: resetPassword response:", { data, error })
   return { data, error }
 }
 
 export async function updatePassword(password: string) {
+  console.log("🚀 supabase.ts: updatePassword called")
+
   const { data, error } = await supabase.auth.updateUser({
     password,
   })
+
+  console.log("📥 supabase.ts: updatePassword response:", { data, error })
   return { data, error }
 }
 
 export async function getCurrentUser() {
+  console.log("🚀 supabase.ts: getCurrentUser called")
+
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
+
+  console.log("📥 supabase.ts: getCurrentUser response:", { user, error })
   return user
 }
 
