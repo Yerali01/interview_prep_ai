@@ -26,37 +26,61 @@ export default function SignUpPage() {
   const router = useRouter()
 
   const validatePassword = () => {
+    console.log("🔍 Validating password...")
+    console.log("Password length:", password.length)
+    console.log("Passwords match:", password === confirmPassword)
+
     if (password !== confirmPassword) {
       setPasswordError("Passwords do not match")
+      console.log("❌ Password validation failed: passwords don't match")
       return false
     }
     if (password.length < 6) {
       setPasswordError("Password must be at least 6 characters")
+      console.log("❌ Password validation failed: too short")
       return false
     }
     setPasswordError("")
+    console.log("✅ Password validation passed")
     return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("🚀 Sign up form submitted")
+    console.log("📧 Email:", email)
+    console.log("🔒 Password length:", password.length)
+
     setGeneralError("")
 
-    if (!validatePassword()) return
+    if (!validatePassword()) {
+      console.log("❌ Form submission stopped: password validation failed")
+      return
+    }
 
     try {
       setIsSubmitting(true)
+      console.log("📤 Calling signUp function...")
+
       await signUp(email, password)
+
+      console.log("✅ Sign up function completed successfully")
       setShowSuccess(true)
+
       // Don't redirect immediately, let user see the success message
       setTimeout(() => {
+        console.log("🔄 Redirecting to success page...")
         router.push("/auth/sign-up-success")
       }, 2000)
     } catch (error: any) {
-      console.error("Sign up error:", error)
+      console.error("❌ Sign up form error:", error)
+      console.error("Error message:", error.message)
+      console.error("Error details:", error)
+
       setGeneralError(error.message || "An unexpected error occurred. Please try again.")
     } finally {
       setIsSubmitting(false)
+      console.log("🏁 Form submission process completed")
     }
   }
 
