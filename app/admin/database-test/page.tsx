@@ -23,6 +23,7 @@ import { migrateSupabaseToFirebase, validateMigration, type MigrationResult } fr
 // Import individual services for comparison
 import { getTopics as supabaseGetTopics } from "@/lib/supabase-new"
 import { firebaseGetTopics } from "@/lib/firebase-service"
+import { runCompleteMigration, type CompleteMigrationResult } from "@/lib/complete-migration"
 
 interface TestResult {
   name: string
@@ -43,6 +44,7 @@ export default function DatabaseTestPage() {
   } | null>(null)
   const [validationResult, setValidationResult] = useState<any>(null)
   const { toast } = useToast()
+  const [completeMigrationResults, setCompleteMigrationResults] = useState<CompleteMigrationResult | null>(null)
 
   const config = getDatabaseConfig()
 
@@ -267,6 +269,33 @@ export default function DatabaseTestPage() {
     return <Badge variant={variants[status as keyof typeof variants] || "outline"}>{status.toUpperCase()}</Badge>
   }
 
+  const runCompleteMigrationProcess = async () => {
+    setIsLoading(true)
+    try {
+      toast({
+        title: "Complete Migration Started",
+        description: "Migrating ALL data from Supabase to Firebase...",
+      })
+
+      const results = await runCompleteMigration()
+      setCompleteMigrationResults(results)
+
+      toast({
+        title: "Complete Migration Finished",
+        description: `Migrated ${results.totalMigrated} items with ${results.totalErrors} errors`,
+        variant: results.totalErrors > 0 ? "destructive" : "default",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Complete Migration Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
@@ -352,6 +381,11 @@ export default function DatabaseTestPage() {
                 Start Migration
               </Button>
 
+              <Button onClick={runCompleteMigrationProcess} disabled={isLoading} className="w-full" variant="default">
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                Run COMPLETE Migration (All Data)
+              </Button>
+
               {migrationResults && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Migration Results:</h3>
@@ -387,6 +421,47 @@ export default function DatabaseTestPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {completeMigrationResults && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Complete Migration Results:</h3>
+                  <div className="p-4 border rounded-lg">
+                    <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+                      <div>
+                        <span className="text-muted-foreground">Total Migrated:</span>
+                        <span className="ml-2 font-medium text-green-600">
+                          {completeMigrationResults.totalMigrated}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total Errors:</span>
+                        <span className="ml-2 font-medium text-red-600">{completeMigrationResults.totalErrors}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Status:</span>
+                        <span
+                          className={`ml-2 font-medium ${completeMigrationResults.success ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {completeMigrationResults.success ? "Success" : "Failed"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {Object.entries(completeMigrationResults.details).map(([key, result]) => (
+                        <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <span className="font-medium capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-green-600">✓ {result.migrated}</span>
+                            <span className="text-yellow-600">⏭ {result.skipped}</span>
+                            <span className="text-red-600">✗ {result.errors.length}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>

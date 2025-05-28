@@ -1,63 +1,48 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut as firebaseSignOutOriginal,
+  signOut,
   sendPasswordResetEmail,
-  updatePassword as firebaseUpdatePasswordOriginal,
-  type User as FirebaseUser,
   onAuthStateChanged,
+  type User as FirebaseUser,
 } from "firebase/auth"
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  type Timestamp,
-} from "firebase/firestore"
+import { collection, doc, getDocs, getDoc, addDoc, query, where, limit, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "./firebase"
 
-// Types matching your Supabase schema
-export interface FirebaseTopic {
+// Types
+interface User {
+  id: string
+  email: string | null
+  email_confirmed_at: string | null
+}
+
+interface Topic {
   id: string
   title: string
   slug: string
   description: string
-  content: string | TopicSection[]
+  content: string
   level: string
   estimated_time: number
-  created_at: Timestamp
-  updated_at: Timestamp
+  created_at: string
+  updated_at: string
 }
 
-export interface TopicSection {
-  title: string
-  content: string
-  code?: string
-}
-
-export interface FirebaseDefinition {
+interface Definition {
   id: string
   term: string
   definition: string
-  category?: string
-  created_at: Timestamp
-  updated_at: Timestamp
+  category: string
+  created_at: string
+  updated_at: string
 }
 
-export interface FirebaseProject {
+interface Project {
   id: string
   name: string
   slug: string
   description: string
-  difficulty_level: "beginner" | "intermediate" | "advanced"
+  difficulty_level: string
   estimated_duration: string
   category: string
   github_url?: string
@@ -65,124 +50,94 @@ export interface FirebaseProject {
   image_url?: string
   is_pet_project: boolean
   real_world_example?: string
-  created_at: Timestamp
-  updated_at: Timestamp
-  technologies?: FirebaseProjectTechnology[]
-  features?: FirebaseProjectFeature[]
+  created_at: string
+  updated_at: string
+  technologies?: any[]
+  features?: any[]
 }
 
-export interface FirebaseProjectTechnology {
-  id: string
-  project_id: string
-  technology_name: string
-  explanation: string
-  is_required: boolean
-  category: string
-}
-
-export interface FirebaseProjectFeature {
-  id: string
-  project_id: string
-  feature_name: string
-  description: string
-  priority: "low" | "medium" | "high"
-}
-
-export interface FirebaseQuiz {
+interface Quiz {
   id: string
   slug: string
   title: string
   description: string
-  level: "junior" | "middle" | "senior"
-  created_at: Timestamp
-  updated_at: Timestamp
-}
-
-export interface FirebaseQuizQuestion {
-  id: string
-  quiz_id: string
-  quiz_slug: string
-  question: string
-  options: Record<string, string> | string
-  correct_answer: string
-  explanation: string
-  category?: string
-  created_at: Timestamp
-}
-
-export interface FirebaseQuizResult {
-  id: string
-  user_id: string
-  quiz_id: string
-  score: number
-  total_questions: number
-  completed_at: Timestamp
-  quiz_title?: string
-  quiz_level?: string
-}
-
-export interface FirebaseUserProgress {
-  id: string
-  user_id: string
-  topic_id: string
-  read_at: Timestamp
+  level: string
+  created_at: string
+  updated_at: string
+  questions?: any[]
 }
 
 // Auth functions
 export async function firebaseSignUp(email: string, password: string) {
   try {
+    console.log("🔥 Firebase: Starting sign up process...")
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
-    // Create user profile document
-    await setDoc(doc(db, "users", user.uid), {
+    // Create user profile in Firestore
+    await addDoc(collection(db, "users"), {
+      uid: user.uid,
       email: user.email,
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
-      email_verified: user.emailVerified,
     })
 
-    return { user, error: null }
+    console.log("✅ Firebase: User created successfully")
+    return {
+      user: {
+        id: user.uid,
+        email: user.email,
+        email_confirmed_at: user.emailVerified ? new Date().toISOString() : null,
+      },
+      error: null,
+    }
   } catch (error: any) {
+    console.error("❌ Firebase: Sign up error:", error)
     return { user: null, error }
   }
 }
 
 export async function firebaseSignIn(email: string, password: string) {
   try {
+    console.log("🔥 Firebase: Starting sign in process...")
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    return { user: userCredential.user, error: null }
+    const user = userCredential.user
+
+    console.log("✅ Firebase: Sign in successful")
+    return {
+      user: {
+        id: user.uid,
+        email: user.email,
+        email_confirmed_at: user.emailVerified ? new Date().toISOString() : null,
+      },
+      error: null,
+    }
   } catch (error: any) {
+    console.error("❌ Firebase: Sign in error:", error)
     return { user: null, error }
   }
 }
 
 export async function firebaseSignOut() {
   try {
-    await firebaseSignOutOriginal(auth)
+    console.log("🔥 Firebase: Starting sign out process...")
+    await signOut(auth)
+    console.log("✅ Firebase: Sign out successful")
     return { error: null }
   } catch (error: any) {
+    console.error("❌ Firebase: Sign out error:", error)
     return { error }
   }
 }
 
 export async function firebaseResetPassword(email: string) {
   try {
+    console.log("🔥 Firebase: Sending password reset email...")
     await sendPasswordResetEmail(auth, email)
+    console.log("✅ Firebase: Password reset email sent")
     return { error: null }
   } catch (error: any) {
-    return { error }
-  }
-}
-
-export async function firebaseUpdatePassword(password: string) {
-  try {
-    if (auth.currentUser) {
-      await firebaseUpdatePasswordOriginal(auth.currentUser, password)
-      return { error: null }
-    }
-    return { error: new Error("No user logged in") }
-  } catch (error: any) {
+    console.error("❌ Firebase: Reset password error:", error)
     return { error }
   }
 }
@@ -191,332 +146,410 @@ export function onFirebaseAuthStateChanged(callback: (user: FirebaseUser | null)
   return onAuthStateChanged(auth, callback)
 }
 
-// Topic functions
-export async function firebaseGetTopics(): Promise<FirebaseTopic[]> {
+// Data functions
+export async function firebaseGetTopics(): Promise<Topic[]> {
   try {
-    const topicsRef = collection(db, "topics")
-    const q = query(topicsRef, orderBy("created_at", "desc"))
-    const querySnapshot = await getDocs(q)
+    console.log("🔥 Firebase: Fetching topics...")
+    const querySnapshot = await getDocs(collection(db, "topics"))
+    const topics: Topic[] = []
 
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as FirebaseTopic[]
-  } catch (error) {
-    console.error("Error fetching topics from Firebase:", error)
-    throw error
-  }
-}
-
-export async function firebaseGetTopicBySlug(slug: string): Promise<FirebaseTopic | null> {
-  try {
-    const topicsRef = collection(db, "topics")
-    const q = query(topicsRef, where("slug", "==", slug), limit(1))
-    const querySnapshot = await getDocs(q)
-
-    if (querySnapshot.empty) {
-      return null
-    }
-
-    const doc = querySnapshot.docs[0]
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as FirebaseTopic
-  } catch (error) {
-    console.error("Error fetching topic by slug from Firebase:", error)
-    return null
-  }
-}
-
-export async function firebaseCreateTopic(topic: Omit<FirebaseTopic, "id" | "created_at" | "updated_at">) {
-  try {
-    const topicsRef = collection(db, "topics")
-    const docRef = await addDoc(topicsRef, {
-      ...topic,
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      topics.push({
+        id: doc.id,
+        title: data.title,
+        slug: data.slug,
+        description: data.description,
+        content: data.content,
+        level: data.level,
+        estimated_time: data.estimated_time,
+        created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+        updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+      })
     })
-    return { id: docRef.id, error: null }
-  } catch (error) {
-    console.error("Error creating topic in Firebase:", error)
-    return { id: null, error }
-  }
-}
 
-// Definition functions
-export async function firebaseGetDefinitions(): Promise<FirebaseDefinition[]> {
-  try {
-    const definitionsRef = collection(db, "definitions")
-    const q = query(definitionsRef, orderBy("term", "asc"))
-    const querySnapshot = await getDocs(q)
-
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as FirebaseDefinition[]
-  } catch (error) {
-    console.error("Error fetching definitions from Firebase:", error)
+    console.log(`✅ Firebase: Retrieved ${topics.length} topics`)
+    return topics
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching topics:", error)
     throw error
   }
 }
 
-export async function firebaseGetDefinitionByTerm(term: string): Promise<FirebaseDefinition | null> {
+export async function firebaseGetTopicBySlug(slug: string): Promise<Topic | null> {
   try {
-    const definitionsRef = collection(db, "definitions")
-    const q = query(definitionsRef, where("term", "==", term), limit(1))
+    console.log(`🔥 Firebase: Fetching topic by slug: ${slug}`)
+    const q = query(collection(db, "topics"), where("slug", "==", slug), limit(1))
     const querySnapshot = await getDocs(q)
 
     if (querySnapshot.empty) {
+      console.log("❌ Firebase: Topic not found")
       return null
     }
 
     const doc = querySnapshot.docs[0]
-    return {
+    const data = doc.data()
+
+    const topic: Topic = {
       id: doc.id,
-      ...doc.data(),
-    } as FirebaseDefinition
-  } catch (error) {
-    console.error("Error fetching definition by term from Firebase:", error)
-    return null
-  }
-}
+      title: data.title,
+      slug: data.slug,
+      description: data.description,
+      content: data.content,
+      level: data.level,
+      estimated_time: data.estimated_time,
+      created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+      updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+    }
 
-// Project functions
-export async function firebaseGetProjects(): Promise<FirebaseProject[]> {
-  try {
-    const projectsRef = collection(db, "projects")
-    const q = query(projectsRef, orderBy("created_at", "desc"))
-    const querySnapshot = await getDocs(q)
-
-    const projects = await Promise.all(
-      querySnapshot.docs.map(async (projectDoc) => {
-        const projectData = { id: projectDoc.id, ...projectDoc.data() } as FirebaseProject
-
-        // Fetch technologies
-        const techRef = collection(db, "project_technologies")
-        const techQuery = query(techRef, where("project_id", "==", projectDoc.id))
-        const techSnapshot = await getDocs(techQuery)
-        projectData.technologies = techSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as FirebaseProjectTechnology[]
-
-        // Fetch features
-        const featuresRef = collection(db, "project_features")
-        const featuresQuery = query(featuresRef, where("project_id", "==", projectDoc.id))
-        const featuresSnapshot = await getDocs(featuresQuery)
-        projectData.features = featuresSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as FirebaseProjectFeature[]
-
-        return projectData
-      }),
-    )
-
-    return projects
-  } catch (error) {
-    console.error("Error fetching projects from Firebase:", error)
+    console.log("✅ Firebase: Topic retrieved successfully")
+    return topic
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching topic:", error)
     throw error
   }
 }
 
-export async function firebaseGetProjectBySlug(slug: string): Promise<FirebaseProject | null> {
+export async function firebaseGetDefinitions(): Promise<Definition[]> {
   try {
-    const projectsRef = collection(db, "projects")
-    const q = query(projectsRef, where("slug", "==", slug), limit(1))
+    console.log("🔥 Firebase: Fetching definitions...")
+    const querySnapshot = await getDocs(collection(db, "definitions"))
+    const definitions: Definition[] = []
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      definitions.push({
+        id: doc.id,
+        term: data.term,
+        definition: data.definition,
+        category: data.category,
+        created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+        updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+      })
+    })
+
+    console.log(`✅ Firebase: Retrieved ${definitions.length} definitions`)
+    return definitions
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching definitions:", error)
+    throw error
+  }
+}
+
+export async function firebaseGetDefinitionByTerm(term: string): Promise<Definition | null> {
+  try {
+    console.log(`🔥 Firebase: Fetching definition by term: ${term}`)
+    const q = query(collection(db, "definitions"), where("term", "==", term), limit(1))
     const querySnapshot = await getDocs(q)
 
     if (querySnapshot.empty) {
+      console.log("❌ Firebase: Definition not found")
       return null
     }
 
-    const projectDoc = querySnapshot.docs[0]
-    const projectData = { id: projectDoc.id, ...projectDoc.data() } as FirebaseProject
+    const doc = querySnapshot.docs[0]
+    const data = doc.data()
 
-    // Fetch technologies
-    const techRef = collection(db, "project_technologies")
-    const techQuery = query(techRef, where("project_id", "==", projectDoc.id))
-    const techSnapshot = await getDocs(techQuery)
-    projectData.technologies = techSnapshot.docs.map((doc) => ({
+    const definition: Definition = {
       id: doc.id,
-      ...doc.data(),
-    })) as FirebaseProjectTechnology[]
+      term: data.term,
+      definition: data.definition,
+      category: data.category,
+      created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+      updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+    }
 
-    // Fetch features
-    const featuresRef = collection(db, "project_features")
-    const featuresQuery = query(featuresRef, where("project_id", "==", projectDoc.id))
-    const featuresSnapshot = await getDocs(featuresQuery)
-    projectData.features = featuresSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as FirebaseProjectFeature[]
-
-    return projectData
-  } catch (error) {
-    console.error("Error fetching project by slug from Firebase:", error)
-    return null
-  }
-}
-
-// Quiz functions
-export async function firebaseGetQuizzes(): Promise<FirebaseQuiz[]> {
-  try {
-    const quizzesRef = collection(db, "quizzes")
-    const q = query(quizzesRef, orderBy("created_at", "asc"))
-    const querySnapshot = await getDocs(q)
-
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as FirebaseQuiz[]
-  } catch (error) {
-    console.error("Error fetching quizzes from Firebase:", error)
+    console.log("✅ Firebase: Definition retrieved successfully")
+    return definition
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching definition:", error)
     throw error
   }
 }
 
-export async function firebaseGetQuizBySlug(slug: string) {
+export async function firebaseGetProjects(): Promise<Project[]> {
   try {
-    const quizzesRef = collection(db, "quizzes")
-    const q = query(quizzesRef, where("slug", "==", slug), limit(1))
-    const quizSnapshot = await getDocs(q)
+    console.log("🔥 Firebase: Fetching projects...")
+    const querySnapshot = await getDocs(collection(db, "projects"))
+    const projects: Project[] = []
 
-    if (quizSnapshot.empty) {
-      return null
+    for (const doc of querySnapshot.docs) {
+      const data = doc.data()
+
+      // Get technologies for this project
+      const techQuery = query(collection(db, "project_technologies"), where("project_id", "==", doc.id))
+      const techSnapshot = await getDocs(techQuery)
+      const technologies = techSnapshot.docs.map((techDoc) => techDoc.data())
+
+      // Get features for this project
+      const featuresQuery = query(collection(db, "project_features"), where("project_id", "==", doc.id))
+      const featuresSnapshot = await getDocs(featuresQuery)
+      const features = featuresSnapshot.docs.map((featureDoc) => featureDoc.data())
+
+      projects.push({
+        id: doc.id,
+        name: data.name,
+        slug: data.slug,
+        description: data.description,
+        difficulty_level: data.difficulty_level,
+        estimated_duration: data.estimated_duration,
+        category: data.category,
+        github_url: data.github_url,
+        demo_url: data.demo_url,
+        image_url: data.image_url,
+        is_pet_project: data.is_pet_project,
+        real_world_example: data.real_world_example,
+        created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+        updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+        technologies,
+        features,
+      })
     }
 
-    const quizDoc = quizSnapshot.docs[0]
-    const quiz = { id: quizDoc.id, ...quizDoc.data() }
-
-    // Fetch questions
-    const questionsRef = collection(db, "quiz_questions")
-    const questionsQuery = query(questionsRef, where("quiz_slug", "==", slug))
-    const questionsSnapshot = await getDocs(questionsQuery)
-
-    const questions = questionsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
-
-    return { ...quiz, questions }
-  } catch (error) {
-    console.error("Error fetching quiz by slug from Firebase:", error)
-    return null
+    console.log(`✅ Firebase: Retrieved ${projects.length} projects`)
+    return projects
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching projects:", error)
+    throw error
   }
 }
 
-export async function firebaseGetQuizById(id: string) {
+export async function firebaseGetProjectBySlug(slug: string): Promise<Project | null> {
   try {
-    const quizDoc = await getDoc(doc(db, "quizzes", id))
+    console.log(`🔥 Firebase: Fetching project by slug: ${slug}`)
+    const q = query(collection(db, "projects"), where("slug", "==", slug), limit(1))
+    const querySnapshot = await getDocs(q)
 
-    if (!quizDoc.exists()) {
+    if (querySnapshot.empty) {
+      console.log("❌ Firebase: Project not found")
       return null
     }
 
-    const quiz = { id: quizDoc.id, ...quizDoc.data() }
+    const doc = querySnapshot.docs[0]
+    const data = doc.data()
 
-    // Fetch questions
-    const questionsRef = collection(db, "quiz_questions")
-    const questionsQuery = query(questionsRef, where("quiz_id", "==", id))
-    const questionsSnapshot = await getDocs(questionsQuery)
+    // Get technologies for this project
+    const techQuery = query(collection(db, "project_technologies"), where("project_id", "==", doc.id))
+    const techSnapshot = await getDocs(techQuery)
+    const technologies = techSnapshot.docs.map((techDoc) => techDoc.data())
 
-    const questions = questionsSnapshot.docs.map((doc) => ({
+    // Get features for this project
+    const featuresQuery = query(collection(db, "project_features"), where("project_id", "==", doc.id))
+    const featuresSnapshot = await getDocs(featuresQuery)
+    const features = featuresSnapshot.docs.map((featureDoc) => featureDoc.data())
+
+    const project: Project = {
       id: doc.id,
-      ...doc.data(),
-    }))
+      name: data.name,
+      slug: data.slug,
+      description: data.description,
+      difficulty_level: data.difficulty_level,
+      estimated_duration: data.estimated_duration,
+      category: data.category,
+      github_url: data.github_url,
+      demo_url: data.demo_url,
+      image_url: data.image_url,
+      is_pet_project: data.is_pet_project,
+      real_world_example: data.real_world_example,
+      created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+      updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+      technologies,
+      features,
+    }
 
-    return { ...quiz, questions }
-  } catch (error) {
-    console.error("Error fetching quiz by id from Firebase:", error)
+    console.log("✅ Firebase: Project retrieved successfully")
+    return project
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching project:", error)
+    throw error
+  }
+}
+
+export async function firebaseGetQuizzes(): Promise<Quiz[]> {
+  try {
+    console.log("🔥 Firebase: Fetching quizzes...")
+    const querySnapshot = await getDocs(collection(db, "quizzes"))
+    const quizzes: Quiz[] = []
+
+    for (const doc of querySnapshot.docs) {
+      const data = doc.data()
+
+      // Get questions for this quiz
+      const questionsQuery = query(collection(db, "quiz_questions"), where("quiz_id", "==", doc.id))
+      const questionsSnapshot = await getDocs(questionsQuery)
+      const questions = questionsSnapshot.docs.map((questionDoc) => questionDoc.data())
+
+      quizzes.push({
+        id: doc.id,
+        slug: data.slug,
+        title: data.title,
+        description: data.description,
+        level: data.level,
+        created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+        updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+        questions,
+      })
+    }
+
+    console.log(`✅ Firebase: Retrieved ${quizzes.length} quizzes`)
+    return quizzes
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching quizzes:", error)
+    throw error
+  }
+}
+
+export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> {
+  try {
+    console.log(`🔥 Firebase: Fetching quiz by slug: ${slug}`)
+    const q = query(collection(db, "quizzes"), where("slug", "==", slug), limit(1))
+    const querySnapshot = await getDocs(q)
+
+    if (querySnapshot.empty) {
+      console.log("❌ Firebase: Quiz not found")
+      return null
+    }
+
+    const doc = querySnapshot.docs[0]
+    const data = doc.data()
+
+    // Get questions for this quiz
+    const questionsQuery = query(collection(db, "quiz_questions"), where("quiz_id", "==", doc.id))
+    const questionsSnapshot = await getDocs(questionsQuery)
+    const questions = questionsSnapshot.docs.map((questionDoc) => questionDoc.data())
+
+    const quiz: Quiz = {
+      id: doc.id,
+      slug: data.slug,
+      title: data.title,
+      description: data.description,
+      level: data.level,
+      created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+      updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+      questions,
+    }
+
+    console.log("✅ Firebase: Quiz retrieved successfully")
+    return quiz
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching quiz:", error)
+    throw error
+  }
+}
+
+export async function firebaseGetQuizById(id: string): Promise<Quiz | null> {
+  try {
+    console.log(`🔥 Firebase: Fetching quiz by ID: ${id}`)
+    const docRef = doc(db, "quizzes", id)
+    const docSnap = await getDoc(docRef)
+
+    if (!docSnap.exists()) {
+      console.log("❌ Firebase: Quiz not found")
+      return null
+    }
+
+    const data = docSnap.data()
+
+    // Get questions for this quiz
+    const questionsQuery = query(collection(db, "quiz_questions"), where("quiz_id", "==", id))
+    const questionsSnapshot = await getDocs(questionsQuery)
+    const questions = questionsSnapshot.docs.map((questionDoc) => questionDoc.data())
+
+    const quiz: Quiz = {
+      id: docSnap.id,
+      slug: data.slug,
+      title: data.title,
+      description: data.description,
+      level: data.level,
+      created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
+      updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at,
+      questions,
+    }
+
+    console.log("✅ Firebase: Quiz retrieved successfully")
+    return quiz
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching quiz:", error)
     throw error
   }
 }
 
 // User progress functions
-export async function firebaseSaveQuizResult(
-  userId: string,
-  quizId: string,
-  score: number,
-  totalQuestions: number,
-  quizTitle?: string,
-  quizLevel?: string,
-) {
+export async function firebaseSaveQuizResult(userId: string, quizId: string, score: number, totalQuestions: number) {
   try {
-    const resultsRef = collection(db, "user_quiz_results")
-    const docRef = await addDoc(resultsRef, {
+    console.log(`🔥 Firebase: Saving quiz result for user ${userId}`)
+    await addDoc(collection(db, "user_quiz_results"), {
       user_id: userId,
       quiz_id: quizId,
       score,
       total_questions: totalQuestions,
-      quiz_title: quizTitle,
-      quiz_level: quizLevel,
       completed_at: serverTimestamp(),
+      created_at: serverTimestamp(),
     })
-    return { id: docRef.id, error: null }
-  } catch (error) {
-    console.error("Error saving quiz result to Firebase:", error)
-    return { id: null, error }
+    console.log("✅ Firebase: Quiz result saved successfully")
+    return { error: null }
+  } catch (error: any) {
+    console.error("❌ Firebase: Error saving quiz result:", error)
+    return { error }
   }
 }
 
-export async function firebaseGetUserQuizResults(userId: string): Promise<FirebaseQuizResult[]> {
+export async function firebaseGetUserQuizResults(userId: string) {
   try {
-    const resultsRef = collection(db, "user_quiz_results")
-    const q = query(resultsRef, where("user_id", "==", userId), orderBy("completed_at", "desc"))
+    console.log(`🔥 Firebase: Fetching quiz results for user ${userId}`)
+    const q = query(collection(db, "user_quiz_results"), where("user_id", "==", userId))
     const querySnapshot = await getDocs(q)
 
-    return querySnapshot.docs.map((doc) => ({
+    const results = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    })) as FirebaseQuizResult[]
-  } catch (error) {
-    console.error("Error fetching user quiz results from Firebase:", error)
+      completed_at: doc.data().completed_at?.toDate?.()?.toISOString() || doc.data().completed_at,
+      created_at: doc.data().created_at?.toDate?.()?.toISOString() || doc.data().created_at,
+    }))
+
+    console.log(`✅ Firebase: Retrieved ${results.length} quiz results`)
+    return results
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching quiz results:", error)
     throw error
   }
 }
 
 export async function firebaseMarkTopicAsRead(userId: string, topicId: string) {
   try {
-    const progressRef = collection(db, "user_topic_progress")
-    const q = query(progressRef, where("user_id", "==", userId), where("topic_id", "==", topicId))
-    const querySnapshot = await getDocs(q)
-
-    if (querySnapshot.empty) {
-      // Create new progress record
-      const docRef = await addDoc(progressRef, {
-        user_id: userId,
-        topic_id: topicId,
-        read_at: serverTimestamp(),
-      })
-      return { id: docRef.id, error: null }
-    } else {
-      // Update existing record
-      const docRef = querySnapshot.docs[0].ref
-      await updateDoc(docRef, {
-        read_at: serverTimestamp(),
-      })
-      return { id: docRef.id, error: null }
-    }
-  } catch (error) {
-    console.error("Error marking topic as read in Firebase:", error)
-    return { id: null, error }
+    console.log(`🔥 Firebase: Marking topic as read for user ${userId}`)
+    await addDoc(collection(db, "user_topic_progress"), {
+      user_id: userId,
+      topic_id: topicId,
+      is_read: true,
+      read_at: serverTimestamp(),
+      created_at: serverTimestamp(),
+    })
+    console.log("✅ Firebase: Topic marked as read successfully")
+    return { error: null }
+  } catch (error: any) {
+    console.error("❌ Firebase: Error marking topic as read:", error)
+    return { error }
   }
 }
 
-export async function firebaseGetUserTopicProgress(userId: string): Promise<FirebaseUserProgress[]> {
+export async function firebaseGetUserTopicProgress(userId: string) {
   try {
-    const progressRef = collection(db, "user_topic_progress")
-    const q = query(progressRef, where("user_id", "==", userId))
+    console.log(`🔥 Firebase: Fetching topic progress for user ${userId}`)
+    const q = query(collection(db, "user_topic_progress"), where("user_id", "==", userId))
     const querySnapshot = await getDocs(q)
 
-    return querySnapshot.docs.map((doc) => ({
+    const progress = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    })) as FirebaseUserProgress[]
-  } catch (error) {
-    console.error("Error fetching user topic progress from Firebase:", error)
+      read_at: doc.data().read_at?.toDate?.()?.toISOString() || doc.data().read_at,
+      created_at: doc.data().created_at?.toDate?.()?.toISOString() || doc.data().created_at,
+    }))
+
+    console.log(`✅ Firebase: Retrieved ${progress.length} topic progress records`)
+    return progress
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching topic progress:", error)
     throw error
   }
 }
