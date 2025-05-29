@@ -5,9 +5,23 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
   onAuthStateChanged,
+  signInWithPopup,
+  linkWithPopup,
+  GithubAuthProvider,
   type User as FirebaseUser,
 } from "firebase/auth"
-import { collection, doc, getDocs, getDoc, addDoc, query, where, limit, serverTimestamp } from "firebase/firestore"
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  setDoc,
+  query,
+  where,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore"
 import { auth, db } from "./firebase"
 
 // Types
@@ -15,6 +29,9 @@ interface User {
   id: string
   email: string | null
   email_confirmed_at: string | null
+  github_username?: string | null
+  github_avatar?: string | null
+  display_name?: string | null
 }
 
 interface Topic {
@@ -102,10 +119,11 @@ export async function firebaseSignUp(email: string, password: string) {
 
     // Create user profile in Firestore
     try {
-      await addDoc(collection(db, "users"), {
+      await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
         email_verified: user.emailVerified,
+        display_name: user.displayName,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       })
@@ -120,6 +138,7 @@ export async function firebaseSignUp(email: string, password: string) {
         id: user.uid,
         email: user.email,
         email_confirmed_at: user.emailVerified ? new Date().toISOString() : null,
+        display_name: user.displayName,
       },
       error: null,
     }
@@ -165,12 +184,156 @@ export async function firebaseSignIn(email: string, password: string) {
         id: user.uid,
         email: user.email,
         email_confirmed_at: user.emailVerified ? new Date().toISOString() : null,
+        display_name: user.displayName,
+        github_username: user.providerData.find((p) => p.providerId === "github.com")?.displayName,
+        github_avatar: user.providerData.find((p) => p.providerId === "github.com")?.photoURL,
       },
       error: null,
     }
   } catch (error: any) {
     console.error("❌ Firebase: Sign in error:", error)
     return { user: null, error }
+  }
+}
+
+export async function firebaseSignInWithGitHub() {
+  try {
+    console.log("🔥 Firebase: Starting GitHub sign in...")
+    const provider = new GithubAuthProvider()
+    provider.addScope("user:email")
+    provider.addScope("read:user")
+
+    const result = await signInWithPopup(auth, provider)
+    const user = result.user
+    const credential = GithubAuthProvider.credentialFromResult(result)
+
+    console.log("✅ Firebase: GitHub sign in successful")
+    console.log("👤 GitHub user:", user.displayName)
+
+    // Update user profile in Firestore
+    try {
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          uid: user.uid,
+          email: user.email,
+          email_verified: user.emailVerified,
+          display_name: user.displayName,
+          github_username: user.displayName,
+          github_avatar: user.photoURL,
+          github_access_token: credential?.accessToken,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        },
+        { merge: true },
+      )
+      console.log("✅ GitHub user profile updated in Firestore")
+    } catch (firestoreError) {
+      console.warn("⚠️ Failed to update user profile in Firestore:", firestoreError)
+    }
+
+    return {
+      user: {
+        id: user.uid,
+        email: user.email,
+        email_confirmed_at: user.emailVerified ? new Date().toISOString() : null,
+        display_name: user.displayName,
+        github_username: user.displayName,
+        github_avatar: user.photoURL,
+      },
+      error: null,
+    }
+  } catch (error: any) {
+    console.error("❌ Firebase: GitHub sign in error:", error)
+
+    let errorMessage = "Failed to sign in with GitHub. Please try again."
+
+    switch (error.code) {
+      case "auth/account-exists-with-different-credential":
+        errorMessage = "An account already exists with the same email address but different sign-in credentials."
+        break
+      case "auth/popup-closed-by-user":
+        errorMessage = "Sign-in popup was closed. Please try again."
+        break
+      case "auth/popup-blocked":
+        errorMessage = "Sign-in popup was blocked by your browser. Please allow popups and try again."
+        break
+      case "auth/cancelled-popup-request":
+        errorMessage = "Sign-in was cancelled. Please try again."
+        break
+      default:
+        errorMessage = error.message || errorMessage
+    }
+
+    return { user: null, error: { message: errorMessage, code: error.code } }
+  }
+}
+
+export async function firebaseLinkGitHubAccount() {
+  try {
+    console.log("🔥 Firebase: Linking GitHub account...")
+    const user = auth.currentUser
+    if (!user) {
+      throw new Error("No user is currently signed in")
+    }
+
+    const provider = new GithubAuthProvider()
+    provider.addScope("user:email")
+    provider.addScope("read:user")
+
+    const result = await linkWithPopup(user, provider)
+    const credential = GithubAuthProvider.credentialFromResult(result)
+
+    console.log("✅ Firebase: GitHub account linked successfully")
+
+    // Update user profile in Firestore
+    try {
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          github_username: result.user.displayName,
+          github_avatar: result.user.photoURL,
+          github_access_token: credential?.accessToken,
+          updated_at: serverTimestamp(),
+        },
+        { merge: true },
+      )
+      console.log("✅ GitHub account info updated in Firestore")
+    } catch (firestoreError) {
+      console.warn("⚠️ Failed to update GitHub info in Firestore:", firestoreError)
+    }
+
+    return {
+      user: {
+        id: result.user.uid,
+        email: result.user.email,
+        email_confirmed_at: result.user.emailVerified ? new Date().toISOString() : null,
+        display_name: result.user.displayName,
+        github_username: result.user.displayName,
+        github_avatar: result.user.photoURL,
+      },
+      error: null,
+    }
+  } catch (error: any) {
+    console.error("❌ Firebase: GitHub linking error:", error)
+
+    let errorMessage = "Failed to link GitHub account. Please try again."
+
+    switch (error.code) {
+      case "auth/credential-already-in-use":
+        errorMessage = "This GitHub account is already linked to another user."
+        break
+      case "auth/popup-closed-by-user":
+        errorMessage = "Linking popup was closed. Please try again."
+        break
+      case "auth/popup-blocked":
+        errorMessage = "Linking popup was blocked by your browser. Please allow popups and try again."
+        break
+      default:
+        errorMessage = error.message || errorMessage
+    }
+
+    return { user: null, error: { message: errorMessage, code: error.code } }
   }
 }
 

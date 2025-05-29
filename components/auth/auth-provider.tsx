@@ -6,6 +6,9 @@ interface User {
   id: string
   email: string | null
   email_confirmed_at: string | null
+  github_username?: string | null
+  github_avatar?: string | null
+  display_name?: string | null
 }
 
 interface AuthContextType {
@@ -13,6 +16,8 @@ interface AuthContextType {
   loading: boolean
   signUp: (email: string, password: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
+  signInWithGitHub: () => Promise<void>
+  linkGitHubAccount: () => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }
@@ -22,6 +27,8 @@ const defaultAuthContext: AuthContextType = {
   loading: true,
   signUp: async () => {},
   signIn: async () => {},
+  signInWithGitHub: async () => {},
+  linkGitHubAccount: async () => {},
   signOut: async () => {},
   resetPassword: async () => {},
 }
@@ -48,10 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const unsubscribe = onFirebaseAuthStateChanged((firebaseUser: any) => {
           if (firebaseUser) {
+            const githubProvider = firebaseUser.providerData.find((p: any) => p.providerId === "github.com")
             setUser({
               id: firebaseUser.uid,
               email: firebaseUser.email,
               email_confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
+              display_name: firebaseUser.displayName,
+              github_username: githubProvider?.displayName || null,
+              github_avatar: githubProvider?.photoURL || firebaseUser.photoURL || null,
             })
           } else {
             setUser(null)
@@ -117,6 +128,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const signInWithGitHub = async () => {
+    if (!isClient) return
+
+    setLoading(true)
+    try {
+      const { firebaseSignInWithGitHub } = await import("@/lib/firebase-service")
+      const result = await firebaseSignInWithGitHub()
+
+      if (result.error) {
+        throw new Error(result.error.message)
+      }
+    } catch (error: any) {
+      console.error("GitHub sign in failed:", error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const linkGitHubAccount = async () => {
+    if (!isClient) return
+
+    setLoading(true)
+    try {
+      const { firebaseLinkGitHubAccount } = await import("@/lib/firebase-service")
+      const result = await firebaseLinkGitHubAccount()
+
+      if (result.error) {
+        throw new Error(result.error.message)
+      }
+    } catch (error: any) {
+      console.error("GitHub linking failed:", error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const signOut = async () => {
     if (!isClient) return
 
@@ -157,6 +206,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signUp,
     signIn,
+    signInWithGitHub,
+    linkGitHubAccount,
     signOut,
     resetPassword,
   }

@@ -1,5 +1,7 @@
 "use client"
 
+import React from "react"
+
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { firebaseGetTopicBySlug } from "@/lib/firebase-service"
@@ -14,6 +16,7 @@ import { useDefinitions } from "@/contexts/definitions-context"
 import { EnhancedMarkdown } from "@/components/enhanced-markdown"
 import { CodeSyntaxLegend } from "@/components/code-syntax-legend"
 import { useToast } from "@/hooks/use-toast"
+import { DefinitionTooltip } from "@/components/definition-tooltip"
 
 interface TopicSection {
   title: string
@@ -45,19 +48,19 @@ export default function TopicPage() {
         const cachedTopic = topics.find((t) => t.slug === slug)
 
         if (cachedTopic && cachedTopic.content) {
-          console.log("🔥 Using cached topic from Firebase:", cachedTopic)
+          console.log("Using cached topic:", cachedTopic)
           setTopic(cachedTopic)
           setLoading(false)
           return
         }
 
         // If not found in cache or content is missing, fetch from Firebase
-        console.log("🔥 Fetching topic from Firebase with slug:", slug)
+        console.log("Fetching topic with slug:", slug)
         const topicData = await firebaseGetTopicBySlug(slug)
-        console.log("🔥 Firebase topic data received:", topicData)
+        console.log("Topic data received:", topicData)
 
         if (!topicData) {
-          setError("Topic not found in Firebase")
+          setError("Topic not found")
         } else {
           setTopic(topicData)
 
@@ -67,8 +70,8 @@ export default function TopicPage() {
           }
         }
       } catch (error) {
-        console.error("❌ Error fetching topic from Firebase:", error)
-        setError("Failed to load topic from Firebase")
+        console.error("Error fetching topic:", error)
+        setError("Failed to load topic")
       } finally {
         setLoading(false)
       }
@@ -80,24 +83,68 @@ export default function TopicPage() {
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      console.log("🔥 Refreshing topic from Firebase...")
       const topicData = await firebaseGetTopicBySlug(slug)
       if (topicData) {
         setTopic(topicData)
         setError(null)
         toast({
           title: "Topic refreshed",
-          description: "Latest content loaded from Firebase",
+          description: "Latest content loaded successfully",
         })
       } else {
-        setError("Topic not found in Firebase")
+        setError("Topic not found")
       }
     } catch (error) {
-      console.error("❌ Error refreshing topic from Firebase:", error)
-      setError("Failed to refresh topic from Firebase")
+      console.error("Error refreshing topic:", error)
+      setError("Failed to refresh topic")
     } finally {
       setRefreshing(false)
     }
+  }
+
+  // Function to add tooltips to code
+  const addTooltipsToCode = (code: string): React.ReactNode => {
+    if (!code || typeof code !== "string") return code
+
+    const definitionsMap = new Map<string, any>()
+    definitions.forEach((def) => {
+      definitionsMap.set(def.term.toLowerCase(), def)
+    })
+
+    const terms = Array.from(definitionsMap.keys())
+    if (terms.length === 0) return code
+
+    const sortedTerms = terms.sort((a, b) => b.length - a.length)
+    const pattern = new RegExp(
+      `\\b(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+      "gi",
+    )
+
+    const lines = code.split("\n")
+
+    return lines.map((line, lineIndex) => {
+      const parts = line.split(pattern)
+
+      return (
+        <React.Fragment key={lineIndex}>
+          {parts.map((part, partIndex) => {
+            const definition = definitionsMap.get(part.toLowerCase())
+
+            if (definition && pattern.test(part)) {
+              return (
+                <DefinitionTooltip key={`${lineIndex}-${partIndex}-${part}`} term={part} definition={definition}>
+                  <span className="border-b border-dotted border-blue-400 cursor-help hover:border-blue-600 bg-blue-50 dark:bg-blue-900/20 px-1 rounded">
+                    {part}
+                  </span>
+                </DefinitionTooltip>
+              )
+            }
+            return part
+          })}
+          {lineIndex < lines.length - 1 && "\n"}
+        </React.Fragment>
+      )
+    })
   }
 
   // Function to prepare code for DartPad
@@ -225,7 +272,7 @@ void main() async {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Topic Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The topic you're looking for doesn't exist in Firebase or has been moved."}
+            {error || "The topic you're looking for doesn't exist or has been moved."}
           </p>
           <Button asChild>
             <Link href="/topics">Browse All Topics</Link>
@@ -266,7 +313,7 @@ void main() async {
             className="flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh from Firebase
+            Refresh
           </Button>
         </div>
       </div>
@@ -311,10 +358,10 @@ void main() async {
                         </div>
                       </div>
 
-                      {/* Code content */}
+                      {/* Code content with tooltips */}
                       <div className="relative">
                         <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500">
-                          <code className="language-dart">{section.code}</code>
+                          <code className="language-dart">{addTooltipsToCode(section.code)}</code>
                         </pre>
                       </div>
 
@@ -346,7 +393,7 @@ void main() async {
           ) : (
             <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md">
               <p className="text-yellow-800 dark:text-yellow-200">
-                This topic doesn't have any content yet in Firebase. Check back later!
+                This topic doesn't have any content yet. Check back later!
               </p>
             </div>
           )}

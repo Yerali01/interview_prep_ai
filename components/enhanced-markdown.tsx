@@ -33,7 +33,7 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
 
     const sortedTerms = terms.sort((a, b) => b.length - a.length)
     const pattern = new RegExp(
-      `(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+      `\\b(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
       "gi",
     )
 
@@ -47,7 +47,9 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
           <DefinitionTooltip key={`${index}-${part}`} term={part} definition={definition}>
             <span
               className={
-                isCode ? "border-b border-dotted border-blue-400 cursor-help hover:border-blue-600" : "cursor-help"
+                isCode
+                  ? "border-b border-dotted border-blue-400 cursor-help hover:border-blue-600 bg-blue-50 dark:bg-blue-900/20 px-1 rounded"
+                  : "border-b border-dotted border-blue-400 cursor-help hover:border-blue-600"
               }
             >
               {part}
@@ -57,6 +59,21 @@ export function EnhancedMarkdown({ content, definitions }: EnhancedMarkdownProps
       }
       return part
     })
+  }
+
+  // Function to process code and add tooltips
+  const processCodeWithTooltips = (code: string): React.ReactNode => {
+    if (!code || typeof code !== "string") return code
+
+    // Split code by lines to preserve formatting
+    const lines = code.split("\n")
+
+    return lines.map((line, lineIndex) => (
+      <React.Fragment key={lineIndex}>
+        {addTooltips(line, true)}
+        {lineIndex < lines.length - 1 && "\n"}
+      </React.Fragment>
+    ))
   }
 
   // Function to prepare code for DartPad
@@ -202,9 +219,6 @@ void main() async {
 
       console.log("📝 Processing code block:", codeContent.substring(0, 50) + "...")
 
-      // Process code with tooltips
-      const processedCode = addTooltips(codeContent, true)
-
       return (
         <div className="my-6">
           <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
@@ -228,10 +242,10 @@ void main() async {
               </div>
             </div>
 
-            {/* Code */}
+            {/* Code with tooltips */}
             <div className="relative">
               <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500">
-                <code className="language-dart">{processedCode}</code>
+                <code className="language-dart">{processCodeWithTooltips(codeContent)}</code>
               </pre>
             </div>
 
