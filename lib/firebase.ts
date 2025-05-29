@@ -12,31 +12,25 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
-// Initialize Firebase only if it hasn't been initialized
-let app
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig)
-  console.log("🔥 Firebase initialized successfully")
-} else {
-  app = getApps()[0]
-  console.log("🔥 Firebase already initialized")
-}
+// Initialize Firebase only if it hasn't been initialized yet
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
 
-// Initialize Auth
+// Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app)
 
-// Initialize Firestore
+// Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app)
 
-// Enable offline persistence
-if (typeof window !== "undefined") {
-  // Only run on client side
-  import("firebase/firestore").then(({ enableNetwork, disableNetwork }) => {
-    // Enable network by default
-    enableNetwork(db).catch((error) => {
-      console.warn("Failed to enable Firestore network:", error)
-    })
-  })
+// Connect to emulators in development (optional)
+if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+  // Only connect to emulators in development and on client side
+  try {
+    // Uncomment these lines if you want to use Firebase emulators in development
+    // connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true })
+    // connectFirestoreEmulator(db, "localhost", 8080)
+  } catch (error) {
+    console.log("Firebase emulators already connected or not available")
+  }
 }
 
 export default app

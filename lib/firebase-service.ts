@@ -3,6 +3,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
   onAuthStateChanged,
   type User as FirebaseUser,
 } from "firebase/auth"
@@ -71,18 +72,49 @@ interface Quiz {
 export async function firebaseSignUp(email: string, password: string) {
   try {
     console.log("🔥 Firebase: Starting sign up process...")
+    console.log("📧 Email:", email)
+
+    // Validate inputs
+    if (!email || !password) {
+      throw new Error("Email and password are required")
+    }
+
+    if (password.length < 6) {
+      throw new Error("Password must be at least 6 characters long")
+    }
+
+    // Create user with Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
-    // Create user profile in Firestore
-    await addDoc(collection(db, "users"), {
-      uid: user.uid,
-      email: user.email,
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
-    })
-
     console.log("✅ Firebase: User created successfully")
+    console.log("👤 User ID:", user.uid)
+    console.log("📧 User email:", user.email)
+
+    // Send email verification
+    try {
+      await sendEmailVerification(user)
+      console.log("📧 Email verification sent")
+    } catch (emailError) {
+      console.warn("⚠️ Failed to send email verification:", emailError)
+      // Don't fail the signup if email verification fails
+    }
+
+    // Create user profile in Firestore
+    try {
+      await addDoc(collection(db, "users"), {
+        uid: user.uid,
+        email: user.email,
+        email_verified: user.emailVerified,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      })
+      console.log("✅ User profile created in Firestore")
+    } catch (firestoreError) {
+      console.warn("⚠️ Failed to create user profile in Firestore:", firestoreError)
+      // Don't fail the signup if Firestore write fails
+    }
+
     return {
       user: {
         id: user.uid,
@@ -92,8 +124,32 @@ export async function firebaseSignUp(email: string, password: string) {
       error: null,
     }
   } catch (error: any) {
-    console.error("❌ Firebase: Sign up error:", error)
-    return { user: null, error }
+    console.error("❌ Firebase sign up error:", error)
+
+    // Map Firebase errors to user-friendly messages
+    let errorMessage = "An unexpected error occurred. Please try again."
+
+    switch (error.code) {
+      case "auth/email-already-in-use":
+        errorMessage = "An account with this email already exists. Please sign in instead."
+        break
+      case "auth/invalid-email":
+        errorMessage = "Please enter a valid email address."
+        break
+      case "auth/weak-password":
+        errorMessage = "Password is too weak. Please choose a stronger password (at least 6 characters)."
+        break
+      case "auth/operation-not-allowed":
+        errorMessage = "Email/password accounts are not enabled. Please contact support."
+        break
+      case "auth/network-request-failed":
+        errorMessage = "Network error. Please check your connection and try again."
+        break
+      default:
+        errorMessage = error.message || errorMessage
+    }
+
+    return { user: null, error: { message: errorMessage, code: error.code } }
   }
 }
 

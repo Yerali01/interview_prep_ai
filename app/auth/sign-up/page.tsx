@@ -69,17 +69,28 @@ export default function SignUpPage() {
       console.log("✅ Sign up function completed successfully")
       setShowSuccess(true)
 
-      // Redirect to home page after successful signup (no email verification needed)
+      // Show success message and redirect
       setTimeout(() => {
         console.log("🔄 Redirecting to home page...")
         router.push("/")
-      }, 1500)
+      }, 2000)
     } catch (error: any) {
       console.error("❌ Sign up form error:", error)
       console.error("Error message:", error.message)
       console.error("Error details:", error)
 
-      setGeneralError(error.message || "An unexpected error occurred. Please try again.")
+      // Handle specific Firebase auth errors
+      let errorMessage = error.message || "An unexpected error occurred. Please try again."
+
+      if (error.message?.includes("email-already-in-use")) {
+        errorMessage = "An account with this email already exists. Please sign in instead."
+      } else if (error.message?.includes("invalid-email")) {
+        errorMessage = "Please enter a valid email address."
+      } else if (error.message?.includes("weak-password")) {
+        errorMessage = "Password is too weak. Please choose a stronger password."
+      }
+
+      setGeneralError(errorMessage)
     } finally {
       setIsSubmitting(false)
       console.log("🏁 Form submission process completed")
@@ -111,7 +122,10 @@ export default function SignUpPage() {
 
               {showSuccess && (
                 <Alert className="border-green-200 bg-green-50 text-green-800">
-                  <AlertDescription>Account created successfully! Redirecting you to the home page...</AlertDescription>
+                  <AlertDescription>
+                    Account created successfully! Please check your email for a verification link, then you'll be
+                    redirected to the home page.
+                  </AlertDescription>
                 </Alert>
               )}
 
