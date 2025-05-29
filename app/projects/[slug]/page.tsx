@@ -424,7 +424,7 @@ export default function ProjectDetailPage() {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Source</span>
-                <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Firebase</span>
+            
               </div>
             </CardContent>
           </Card>

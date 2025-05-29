@@ -201,7 +201,6 @@ export default function QuizPage() {
           <h1 className="text-4xl font-bold mb-2">{quiz.title}</h1>
           <p className="text-xl text-muted-foreground">
             {quiz.description}
-            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Powered by Firebase</span>
           </p>
         </div>
 
