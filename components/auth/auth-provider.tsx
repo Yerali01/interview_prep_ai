@@ -30,8 +30,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     console.log("🔥 AuthProvider: Setting up Firebase auth listener...")
 
     const unsubscribe = onFirebaseAuthStateChanged((firebaseUser: FirebaseUser | null) => {
@@ -53,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("🔥 AuthProvider: Cleaning up Firebase auth listener")
       unsubscribe()
     }
-  }, [])
+  }, [mounted])
 
   const signUp = async (email: string, password: string) => {
     console.log("🔥 AuthProvider: Sign up called")
@@ -133,6 +140,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("❌ AuthProvider: Reset password failed:", error)
       throw error
     }
+  }
+
+  // Don't render anything until mounted to avoid hydration issues
+  if (!mounted) {
+    return <>{children}</>
   }
 
   const value = {
