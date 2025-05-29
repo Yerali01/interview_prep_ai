@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { getTopics, type Topic } from "@/lib/supabase"
+import { firebaseGetTopics, type Topic } from "@/lib/firebase-service"
 
 interface TopicsContextType {
   topics: Topic[]
@@ -24,7 +24,10 @@ export function TopicsProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       setError(null)
-      const topicsData = await getTopics()
+      console.log("🔥 Fetching topics from Firebase...")
+
+      const topicsData = await firebaseGetTopics()
+      console.log("🔥 Firebase topics received:", topicsData.length)
 
       // Sort topics by level: junior -> middle -> senior
       const levelOrder = { junior: 1, middle: 2, senior: 3 }
@@ -36,11 +39,13 @@ export function TopicsProvider({ children }: { children: React.ReactNode }) {
       setLastFetched(Date.now())
 
       // Store in localStorage for persistence across page refreshes
-      localStorage.setItem("cachedTopics", JSON.stringify(sortedTopics))
-      localStorage.setItem("topicsCacheTimestamp", Date.now().toString())
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cachedTopics", JSON.stringify(sortedTopics))
+        localStorage.setItem("topicsCacheTimestamp", Date.now().toString())
+      }
     } catch (err) {
-      console.error("Error fetching topics:", err)
-      setError("Failed to load topics")
+      console.error("❌ Error fetching topics from Firebase:", err)
+      setError("Failed to load topics from Firebase")
     } finally {
       setLoading(false)
     }
@@ -51,27 +56,34 @@ export function TopicsProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Try to load from cache first
-    const cachedTopics = localStorage.getItem("cachedTopics")
-    const cacheTimestamp = localStorage.getItem("topicsCacheTimestamp")
+    // Only access localStorage on the client side
+    if (typeof window !== "undefined") {
+      // Try to load from cache first
+      const cachedTopics = localStorage.getItem("cachedTopics")
+      const cacheTimestamp = localStorage.getItem("topicsCacheTimestamp")
 
-    if (cachedTopics && cacheTimestamp) {
-      try {
-        const parsedTopics = JSON.parse(cachedTopics)
-        setTopics(parsedTopics)
-        setLastFetched(Number.parseInt(cacheTimestamp))
-        setLoading(false)
+      if (cachedTopics && cacheTimestamp) {
+        try {
+          const parsedTopics = JSON.parse(cachedTopics)
+          setTopics(parsedTopics)
+          setLastFetched(Number.parseInt(cacheTimestamp))
+          setLoading(false)
 
-        // If cache is older than 1 hour, refresh in background
-        const ONE_HOUR = 60 * 60 * 1000
-        if (Date.now() - Number.parseInt(cacheTimestamp) > ONE_HOUR) {
+          // If cache is older than 1 hour, refresh in background
+          const ONE_HOUR = 60 * 60 * 1000
+          if (Date.now() - Number.parseInt(cacheTimestamp) > ONE_HOUR) {
+            console.log("🔥 Cache expired, refreshing topics from Firebase...")
+            fetchTopics()
+          }
+        } catch (err) {
+          console.error("Error parsing cached topics:", err)
           fetchTopics()
         }
-      } catch (err) {
-        console.error("Error parsing cached topics:", err)
+      } else {
         fetchTopics()
       }
     } else {
+      // On server side, just fetch without cache
       fetchTopics()
     }
   }, [])

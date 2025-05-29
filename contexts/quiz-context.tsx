@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { getQuizzes, type Quiz } from "@/lib/supabase"
+import { firebaseGetQuizzes, type Quiz } from "@/lib/firebase-service"
 
 interface QuizContextType {
   quizzes: Quiz[]
@@ -24,7 +24,10 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       setError(null)
-      const quizzesData = await getQuizzes()
+      console.log("🔥 Fetching quizzes from Firebase...")
+
+      const quizzesData = await firebaseGetQuizzes()
+      console.log("🔥 Firebase quizzes received:", quizzesData.length)
 
       // Sort quizzes by level: junior -> middle -> senior
       const levelOrder = { junior: 1, middle: 2, senior: 3 }
@@ -41,8 +44,8 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("quizzesCacheTimestamp", Date.now().toString())
       }
     } catch (err) {
-      console.error("Error fetching quizzes:", err)
-      setError("Failed to load quizzes")
+      console.error("❌ Error fetching quizzes from Firebase:", err)
+      setError("Failed to load quizzes from Firebase")
     } finally {
       setLoading(false)
     }
@@ -69,6 +72,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
           // If cache is older than 1 hour, refresh in background
           const ONE_HOUR = 60 * 60 * 1000
           if (Date.now() - Number.parseInt(cacheTimestamp) > ONE_HOUR) {
+            console.log("🔥 Cache expired, refreshing quizzes from Firebase...")
             fetchQuizzes()
           }
         } catch (err) {

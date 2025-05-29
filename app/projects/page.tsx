@@ -7,28 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Share2, Clock, Code, Star, ExternalLink, Github, Filter } from "lucide-react"
-import { getProjects, type Project } from "@/lib/supabase"
+import { firebaseGetProjects, type Project } from "@/lib/firebase-service"
 import { useToast } from "@/components/ui/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-
-interface Technology {
-  technology_name: string
-  explanation: string
-  category: string
-  is_required: boolean
-  package_name?: string
-  version_requirement?: string
-  installation_command?: string
-  documentation_url?: string
-  purpose?: string
-}
-
-interface Feature {
-  feature_name: string
-  description: string
-  priority: string
-}
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -44,11 +26,15 @@ export default function ProjectsPage() {
     const fetchProjects = async () => {
       try {
         setLoading(true)
-        const projectsData = await getProjects()
+        console.log("🔥 Fetching projects from Firebase...")
+
+        const projectsData = await firebaseGetProjects()
+        console.log("🔥 Firebase projects received:", projectsData?.length || 0)
+
         setProjects(projectsData || [])
       } catch (err) {
-        setError("Failed to load projects")
-        console.error("Error fetching projects:", err)
+        setError("Failed to load projects from Firebase")
+        console.error("❌ Error fetching projects from Firebase:", err)
       } finally {
         setLoading(false)
       }
@@ -171,6 +157,7 @@ export default function ProjectsPage() {
           <p className="text-muted-foreground">
             Discover interesting Flutter and Dart projects to build and learn from. From beginner-friendly apps to
             advanced applications that started as pet projects.
+            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Powered by Firebase</span>
           </p>
         </div>
 

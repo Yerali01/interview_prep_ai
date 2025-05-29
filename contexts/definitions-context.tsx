@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
-import { type Definition, getDefinitions } from "@/lib/supabase"
+import { firebaseGetDefinitions, type Definition } from "@/lib/firebase-service"
 
 interface DefinitionsContextType {
   definitions: Definition[]
@@ -23,11 +22,15 @@ export function DefinitionsProvider({ children }: { children: React.ReactNode })
     try {
       setLoading(true)
       setError(null)
-      const data = await getDefinitions()
+      console.log("🔥 Fetching definitions from Firebase...")
+
+      const data = await firebaseGetDefinitions()
+      console.log("🔥 Firebase definitions received:", data.length)
+
       setDefinitions(data)
     } catch (err) {
-      console.error("Error fetching definitions:", err)
-      setError("Failed to load definitions")
+      console.error("❌ Error fetching definitions from Firebase:", err)
+      setError("Failed to load definitions from Firebase")
     } finally {
       setLoading(false)
     }

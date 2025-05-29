@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { getTopicBySlug } from "@/lib/supabase"
+import { firebaseGetTopicBySlug } from "@/lib/firebase-service"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, RefreshCw, Copy, Play } from "lucide-react"
 import Link from "next/link"
@@ -45,19 +45,19 @@ export default function TopicPage() {
         const cachedTopic = topics.find((t) => t.slug === slug)
 
         if (cachedTopic && cachedTopic.content) {
-          console.log("Using cached topic:", cachedTopic)
+          console.log("🔥 Using cached topic from Firebase:", cachedTopic)
           setTopic(cachedTopic)
           setLoading(false)
           return
         }
 
-        // If not found in cache or content is missing, fetch from API
-        console.log("Fetching topic with slug:", slug)
-        const topicData = await getTopicBySlug(slug)
-        console.log("Topic data received:", topicData)
+        // If not found in cache or content is missing, fetch from Firebase
+        console.log("🔥 Fetching topic from Firebase with slug:", slug)
+        const topicData = await firebaseGetTopicBySlug(slug)
+        console.log("🔥 Firebase topic data received:", topicData)
 
         if (!topicData) {
-          setError("Topic not found")
+          setError("Topic not found in Firebase")
         } else {
           setTopic(topicData)
 
@@ -67,8 +67,8 @@ export default function TopicPage() {
           }
         }
       } catch (error) {
-        console.error("Error fetching topic:", error)
-        setError("Failed to load topic")
+        console.error("❌ Error fetching topic from Firebase:", error)
+        setError("Failed to load topic from Firebase")
       } finally {
         setLoading(false)
       }
@@ -80,16 +80,21 @@ export default function TopicPage() {
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      const topicData = await getTopicBySlug(slug)
+      console.log("🔥 Refreshing topic from Firebase...")
+      const topicData = await firebaseGetTopicBySlug(slug)
       if (topicData) {
         setTopic(topicData)
         setError(null)
+        toast({
+          title: "Topic refreshed",
+          description: "Latest content loaded from Firebase",
+        })
       } else {
-        setError("Topic not found")
+        setError("Topic not found in Firebase")
       }
     } catch (error) {
-      console.error("Error refreshing topic:", error)
-      setError("Failed to refresh topic")
+      console.error("❌ Error refreshing topic from Firebase:", error)
+      setError("Failed to refresh topic from Firebase")
     } finally {
       setRefreshing(false)
     }
@@ -220,7 +225,7 @@ void main() async {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Topic Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The topic you're looking for doesn't exist or has been moved."}
+            {error || "The topic you're looking for doesn't exist in Firebase or has been moved."}
           </p>
           <Button asChild>
             <Link href="/topics">Browse All Topics</Link>
@@ -261,7 +266,7 @@ void main() async {
             className="flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            Refresh from Firebase
           </Button>
         </div>
       </div>
@@ -272,6 +277,9 @@ void main() async {
           <div className="flex items-center text-muted-foreground">
             <span className="capitalize mr-4">{topic.level} Level</span>
             <span>{topic.estimated_time} min read</span>
+            <span className="ml-4 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+              🔥 Loaded from Firebase
+            </span>
           </div>
         </div>
 
@@ -341,7 +349,7 @@ void main() async {
           ) : (
             <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md">
               <p className="text-yellow-800 dark:text-yellow-200">
-                This topic doesn't have any content yet. Check back later!
+                This topic doesn't have any content yet in Firebase. Check back later!
               </p>
             </div>
           )}

@@ -20,7 +20,7 @@ import {
   Package,
   Copy,
 } from "lucide-react"
-import { getProjectBySlug, type Project, type Technology, type Feature } from "@/lib/supabase"
+import { firebaseGetProjectBySlug, type Project, type Technology, type Feature } from "@/lib/firebase-service"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function ProjectDetailPage() {
@@ -37,12 +37,15 @@ export default function ProjectDetailPage() {
 
       try {
         setLoading(true)
-        const projectData = await getProjectBySlug(params.slug as string)
-        console.log("Fetched project data:", projectData) // Debug log
+        console.log("🔥 Fetching project from Firebase with slug:", params.slug)
+
+        const projectData = await firebaseGetProjectBySlug(params.slug as string)
+        console.log("🔥 Firebase project data received:", projectData)
+
         setProject(projectData)
       } catch (err) {
-        setError("Failed to load project")
-        console.error("Error fetching project:", err)
+        setError("Failed to load project from Firebase")
+        console.error("❌ Error fetching project from Firebase:", err)
       } finally {
         setLoading(false)
       }
@@ -131,7 +134,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">{error || "Project not found"}</h1>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">{error || "Project not found in Firebase"}</h1>
           <Button onClick={() => router.push("/projects")} className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Projects
@@ -171,6 +174,9 @@ export default function ProjectDetailPage() {
                       Pet Project
                     </Badge>
                   )}
+                  <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                    🔥 Firebase
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge className={getDifficultyColor(project.difficulty_level)}>{project.difficulty_level}</Badge>
@@ -416,6 +422,10 @@ export default function ProjectDetailPage() {
                   <span className="text-sm font-medium">{features.length}</span>
                 </div>
               )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Source</span>
+                <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Firebase</span>
+              </div>
             </CardContent>
           </Card>
 

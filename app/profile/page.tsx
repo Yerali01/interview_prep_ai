@@ -11,7 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Loader2, Trophy, Clock, Calendar } from "lucide-react"
-import { getUserQuizResults, type QuizResult } from "@/lib/supabase"
+import { firebaseGetUserQuizResults, type QuizResult } from "@/lib/firebase-service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ProfilePage() {
@@ -31,10 +31,12 @@ export default function ProfilePage() {
       if (user) {
         setLoadingResults(true)
         try {
-          const results = await getUserQuizResults(user.id)
+          console.log("🔥 Fetching quiz results from Firebase for user:", user.id)
+          const results = await firebaseGetUserQuizResults(user.id)
+          console.log("🔥 Firebase quiz results received:", results.length)
           setQuizResults(results)
         } catch (error) {
-          console.error("Error fetching quiz results:", error)
+          console.error("❌ Error fetching quiz results from Firebase:", error)
         } finally {
           setLoadingResults(false)
         }
@@ -102,7 +104,12 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl">Your Profile</CardTitle>
-                <CardDescription>Manage your account settings</CardDescription>
+                <CardDescription>
+                  Manage your account settings
+                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                    🔥 Firebase Account
+                  </span>
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1">
@@ -116,6 +123,10 @@ export default function ProfilePage() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Email Verified</p>
                   <p className="text-sm text-muted-foreground">{user.email_confirmed_at ? "Yes" : "No"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Database</p>
+                  <p className="text-sm text-muted-foreground">Firebase (Primary)</p>
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4">
@@ -132,7 +143,10 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl">Quiz History</CardTitle>
-                <CardDescription>View your past quiz attempts and scores</CardDescription>
+                <CardDescription>
+                  View your past quiz attempts and scores
+                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 From Firebase</span>
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingResults ? (
@@ -152,7 +166,7 @@ export default function ProfilePage() {
                       <Card key={result.id} className="overflow-hidden">
                         <div className="p-4 border-b bg-muted/50">
                           <div className="flex justify-between items-center">
-                            <h3 className="font-medium">{result.quizzes.title}</h3>
+                            <h3 className="font-medium">{result.quiz_title || "Quiz"}</h3>
                             <div className="flex items-center text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
                               {formatDate(result.completed_at)}
@@ -177,8 +191,8 @@ export default function ProfilePage() {
                               <Clock className="h-4 w-4 mr-1" />
                               Time
                             </div>
-                            <div className="text-lg font-bold">{formatTime(Number(result.completed_at))}</div>
-                            <div className="text-xs text-muted-foreground">minutes:seconds</div>
+                            <div className="text-lg font-bold">--:--</div>
+                            <div className="text-xs text-muted-foreground">Firebase data</div>
                           </div>
                           <div className="flex items-center justify-center">
                             <Button variant="outline" size="sm" asChild>
@@ -197,16 +211,4 @@ export default function ProfilePage() {
       </Tabs>
     </div>
   )
-}
-
-function getScoreBadge(score: number, total: number) {
-  const percentage = (score / total) * 100
-
-  if (percentage >= 80) {
-    return <span className="px-2 py-1 bg-green-500/20 text-green-500 rounded-full text-xs font-medium">Excellent</span>
-  } else if (percentage >= 60) {
-    return <span className="px-2 py-1 bg-yellow-500/20 text-yellow-500 rounded-full text-xs font-medium">Good</span>
-  } else {
-    return <span className="px-2 py-1 bg-red-500/20 text-red-500 rounded-full text-xs font-medium">Needs Practice</span>
-  }
 }

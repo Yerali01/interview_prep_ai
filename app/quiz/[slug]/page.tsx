@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getQuizBySlug, saveQuizResult, getCurrentUser, type QuizQuestion } from "@/lib/supabase"
+import { firebaseGetQuizBySlug, firebaseSaveQuizResult, type QuizQuestion } from "@/lib/firebase-service"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -18,6 +19,7 @@ export default function QuizPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { user } = useAuth()
   const slug = params?.slug as string
 
   const [quiz, setQuiz] = useState<any>(null)
@@ -41,20 +43,20 @@ export default function QuizPage() {
           return
         }
 
-        console.log("Fetching quiz with slug:", slug)
-        const quizData = await getQuizBySlug(slug)
-        console.log("Quiz data received:", quizData)
+        console.log("🔥 Fetching quiz from Firebase with slug:", slug)
+        const quizData = await firebaseGetQuizBySlug(slug)
+        console.log("🔥 Firebase quiz data received:", quizData)
 
         if (!quizData) {
-          setError("Quiz not found")
+          setError("Quiz not found in Firebase")
         } else if (!quizData.questions || quizData.questions.length === 0) {
           setError("This quiz has no questions yet")
         } else {
           setQuiz(quizData)
         }
       } catch (error) {
-        console.error("Error fetching quiz:", error)
-        setError("Failed to load quiz")
+        console.error("❌ Error fetching quiz from Firebase:", error)
+        setError("Failed to load quiz from Firebase")
       } finally {
         setLoading(false)
       }
@@ -114,21 +116,21 @@ export default function QuizPage() {
   const saveResult = async (finalScore: number) => {
     try {
       setSavingResult(true)
-      const user = await getCurrentUser()
 
       if (user) {
-        await saveQuizResult(user.id, quiz.id, finalScore, quiz.questions.length)
+        console.log("🔥 Saving quiz result to Firebase...")
+        await firebaseSaveQuizResult(user.id, quiz.id, finalScore, quiz.questions.length)
 
         toast({
           title: "Quiz result saved",
-          description: "Your score has been saved to your profile.",
+          description: "Your score has been saved to Firebase.",
         })
       }
     } catch (error) {
-      console.error("Error saving quiz result:", error)
+      console.error("❌ Error saving quiz result to Firebase:", error)
       toast({
         title: "Error saving result",
-        description: "There was a problem saving your quiz result.",
+        description: "There was a problem saving your quiz result to Firebase.",
         variant: "destructive",
       })
     } finally {
@@ -169,7 +171,7 @@ export default function QuizPage() {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Quiz Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The quiz you're looking for doesn't exist or has been moved."}
+            {error || "The quiz you're looking for doesn't exist in Firebase or has been moved."}
           </p>
           <Button asChild>
             <Link href="/quiz">Browse All Quizzes</Link>
@@ -197,7 +199,10 @@ export default function QuizPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">{quiz.title}</h1>
-          <p className="text-xl text-muted-foreground">{quiz.description}</p>
+          <p className="text-xl text-muted-foreground">
+            {quiz.description}
+            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Powered by Firebase</span>
+          </p>
         </div>
 
         {!quizCompleted ? (
@@ -283,7 +288,12 @@ export default function QuizPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Quiz Completed!</CardTitle>
-              <CardDescription>You've completed the {quiz.title}</CardDescription>
+              <CardDescription>
+                You've completed the {quiz.title}
+                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                  🔥 Results saved to Firebase
+                </span>
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="text-center mb-6">
