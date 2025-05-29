@@ -171,7 +171,7 @@ export default function QuizPage() {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Quiz Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The quiz you're looking for doesn't exist in Firebase or has been moved."}
+            {error || "The quiz you're looking for doesn't exist or has been moved."}
           </p>
           <Button asChild>
             <Link href="/quiz">Browse All Quizzes</Link>
@@ -199,10 +199,7 @@ export default function QuizPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">{quiz.title}</h1>
-          <p className="text-xl text-muted-foreground">
-            {quiz.description}
-            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Powered by Firebase</span>
-          </p>
+          <p className="text-xl text-muted-foreground">{quiz.description}</p>
         </div>
 
         {!quizCompleted ? (
@@ -288,12 +285,7 @@ export default function QuizPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Quiz Completed!</CardTitle>
-              <CardDescription>
-                You've completed the {quiz.title}
-                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                  🔥 Results saved to Firebase
-                </span>
-              </CardDescription>
+              <CardDescription>You've completed the {quiz.title}</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="text-center mb-6">

@@ -104,12 +104,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl">Your Profile</CardTitle>
-                <CardDescription>
-                  Manage your account settings
-                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                    🔥 Firebase Account
-                  </span>
-                </CardDescription>
+                <CardDescription>Manage your account settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1">
@@ -143,10 +138,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl">Quiz History</CardTitle>
-                <CardDescription>
-                  View your past quiz attempts and scores
-                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 From Firebase</span>
-                </CardDescription>
+                <CardDescription>View your past quiz attempts and scores</CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingResults ? (
