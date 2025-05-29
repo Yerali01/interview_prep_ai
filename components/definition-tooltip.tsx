@@ -39,19 +39,41 @@ export function DefinitionTooltip({ term, definition, children }: DefinitionTool
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
 
+      // Find the nearest scrollable container (code block container)
+      const container = triggerRef.current.closest(".code-container, pre, .enhanced-markdown")
+      let containerRect = container?.getBoundingClientRect()
+
+      // If no specific container found, use viewport
+      if (!containerRect) {
+        containerRect = {
+          left: 20,
+          right: viewportWidth - 20,
+          top: 20,
+          bottom: viewportHeight - 20,
+          width: viewportWidth - 40,
+          height: viewportHeight - 40,
+        }
+      }
+
       let x = triggerRect.left + triggerRect.width / 2
       let y = triggerRect.top - 10
 
-      // Adjust horizontal position if tooltip would go off-screen
-      if (x + tooltipRect.width / 2 > viewportWidth - 20) {
-        x = viewportWidth - tooltipRect.width / 2 - 20
-      } else if (x - tooltipRect.width / 2 < 20) {
-        x = tooltipRect.width / 2 + 20
+      // Adjust horizontal position to stay within container
+      const tooltipHalfWidth = tooltipRect.width / 2
+      if (x + tooltipHalfWidth > containerRect.right - 10) {
+        x = containerRect.right - tooltipHalfWidth - 10
+      } else if (x - tooltipHalfWidth < containerRect.left + 10) {
+        x = containerRect.left + tooltipHalfWidth + 10
       }
 
-      // Adjust vertical position if tooltip would go off-screen
-      if (y - tooltipRect.height < 20) {
+      // Adjust vertical position if tooltip would go off-screen or outside container
+      if (y - tooltipRect.height < containerRect.top + 10) {
         y = triggerRect.bottom + 10
+      }
+
+      // Ensure tooltip doesn't go below container bottom
+      if (y + tooltipRect.height > containerRect.bottom - 10) {
+        y = triggerRect.top - tooltipRect.height - 10
       }
 
       setPosition({ x, y })
@@ -104,11 +126,12 @@ export function DefinitionTooltip({ term, definition, children }: DefinitionTool
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-50 max-w-sm p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-lg text-gray-100"
+            className="fixed z-50 max-w-sm p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-lg text-gray-100 tooltip-container"
             style={{
               left: position.x,
               top: position.y,
               transform: "translateX(-50%) translateY(-100%)",
+              maxWidth: "min(300px, 90vw)", // Responsive max width
             }}
           >
             <div className="space-y-2">

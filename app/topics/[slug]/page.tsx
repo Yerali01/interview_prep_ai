@@ -337,7 +337,7 @@ void main() async {
 
                 {section.code && (
                   <div className="my-6">
-                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden relative">
                       {/* Code header */}
                       <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Example</span>
@@ -359,7 +359,7 @@ void main() async {
                       </div>
 
                       {/* Code content with tooltips */}
-                      <div className="relative">
+                      <div className="relative code-container overflow-hidden">
                         <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500">
                           <code className="language-dart">{addTooltipsToCode(section.code)}</code>
                         </pre>
