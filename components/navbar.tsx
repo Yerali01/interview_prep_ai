@@ -18,7 +18,7 @@ import {
   Bot,
   Code,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "./auth/auth-provider"
 import {
@@ -36,9 +36,14 @@ import ThemeToggle from "@/components/theme-toggle"
 export default function Navbar() {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { user, signOut } = useAuth()
 
-  // Main navigation items with Projects added
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Main navigation items
   const mainNavItems = [
     {
       href: "/topics",
@@ -90,13 +95,35 @@ export default function Navbar() {
   ]
 
   const handleSignOut = async () => {
-    await signOut()
-    setIsMenuOpen(false)
+    try {
+      await signOut()
+      setIsMenuOpen(false)
+    } catch (error) {
+      console.error("Sign out error:", error)
+    }
   }
 
   const getUserInitials = () => {
     if (!user || !user.email) return "U"
     return user.email.substring(0, 1).toUpperCase()
+  }
+
+  // Don't render auth-dependent content until mounted
+  if (!mounted) {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 text-transparent bg-clip-text">
+              FlutterPrep
+            </span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+    )
   }
 
   return (
@@ -202,7 +229,7 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* Mobile menu button and user account */}
+        {/* Mobile menu button */}
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>

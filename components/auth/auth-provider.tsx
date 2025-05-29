@@ -1,14 +1,6 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import {
-  onFirebaseAuthStateChanged,
-  firebaseSignUp,
-  firebaseSignIn,
-  firebaseSignOut,
-  firebaseResetPassword,
-} from "@/lib/firebase-service"
-import type { User as FirebaseUser } from "firebase/auth"
 
 interface User {
   id: string
@@ -25,58 +17,81 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  loading: true,
+  signUp: async () => {},
+  signIn: async () => {},
+  signOut: async () => {},
+  resetPassword: async () => {},
+}
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
+  const [isClient, setIsClient] = useState(false)
 
+  // Only run on client side
   useEffect(() => {
-    setMounted(true)
+    setIsClient(true)
   }, [])
 
   useEffect(() => {
-    if (!mounted) return
+    if (!isClient) return
 
-    console.log("🔥 AuthProvider: Setting up Firebase auth listener...")
+    // Dynamically import Firebase only on client side
+    const initializeAuth = async () => {
+      try {
+        const { onFirebaseAuthStateChanged } = await import("@/lib/firebase-service")
 
-    const unsubscribe = onFirebaseAuthStateChanged((firebaseUser: FirebaseUser | null) => {
-      console.log("🔥 Firebase auth state changed:", firebaseUser?.email || "No user")
-
-      if (firebaseUser) {
-        setUser({
-          id: firebaseUser.uid,
-          email: firebaseUser.email,
-          email_confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
+        const unsubscribe = onFirebaseAuthStateChanged((firebaseUser: any) => {
+          if (firebaseUser) {
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email,
+              email_confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
+            })
+          } else {
+            setUser(null)
+          }
+          setLoading(false)
         })
-      } else {
-        setUser(null)
+
+        return unsubscribe
+      } catch (error) {
+        console.error("Failed to initialize auth:", error)
+        setLoading(false)
       }
-      setLoading(false)
+    }
+
+    let unsubscribe: (() => void) | undefined
+
+    initializeAuth().then((unsub) => {
+      unsubscribe = unsub
     })
 
     return () => {
-      console.log("🔥 AuthProvider: Cleaning up Firebase auth listener")
-      unsubscribe()
+      if (unsubscribe) {
+        unsubscribe()
+      }
     }
-  }, [mounted])
+  }, [isClient])
 
   const signUp = async (email: string, password: string) => {
-    console.log("🔥 AuthProvider: Sign up called")
-    setLoading(true)
+    if (!isClient) return
 
+    setLoading(true)
     try {
+      const { firebaseSignUp } = await import("@/lib/firebase-service")
       const result = await firebaseSignUp(email, password)
 
       if (result.error) {
         throw new Error(result.error.message)
       }
-
-      console.log("✅ AuthProvider: Sign up successful")
-      // User state will be updated by the auth state listener
     } catch (error: any) {
-      console.error("❌ AuthProvider: Sign up failed:", error)
+      console.error("Sign up failed:", error)
       throw error
     } finally {
       setLoading(false)
@@ -84,20 +99,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    console.log("🔥 AuthProvider: Sign in called")
-    setLoading(true)
+    if (!isClient) return
 
+    setLoading(true)
     try {
+      const { firebaseSignIn } = await import("@/lib/firebase-service")
       const result = await firebaseSignIn(email, password)
 
       if (result.error) {
         throw new Error(result.error.message)
       }
-
-      console.log("✅ AuthProvider: Sign in successful")
-      // User state will be updated by the auth state listener
     } catch (error: any) {
-      console.error("❌ AuthProvider: Sign in failed:", error)
+      console.error("Sign in failed:", error)
       throw error
     } finally {
       setLoading(false)
@@ -105,20 +118,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    console.log("🔥 AuthProvider: Sign out called")
-    setLoading(true)
+    if (!isClient) return
 
+    setLoading(true)
     try {
+      const { firebaseSignOut } = await import("@/lib/firebase-service")
       const result = await firebaseSignOut()
 
       if (result.error) {
         throw new Error(result.error.message)
       }
-
-      console.log("✅ AuthProvider: Sign out successful")
-      // User state will be updated by the auth state listener
     } catch (error: any) {
-      console.error("❌ AuthProvider: Sign out failed:", error)
+      console.error("Sign out failed:", error)
       throw error
     } finally {
       setLoading(false)
@@ -126,25 +137,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const resetPassword = async (email: string) => {
-    console.log("🔥 AuthProvider: Reset password called")
+    if (!isClient) return
 
     try {
+      const { firebaseResetPassword } = await import("@/lib/firebase-service")
       const result = await firebaseResetPassword(email)
 
       if (result.error) {
         throw new Error(result.error.message)
       }
-
-      console.log("✅ AuthProvider: Reset password email sent")
     } catch (error: any) {
-      console.error("❌ AuthProvider: Reset password failed:", error)
+      console.error("Reset password failed:", error)
       throw error
     }
-  }
-
-  // Don't render anything until mounted to avoid hydration issues
-  if (!mounted) {
-    return <>{children}</>
   }
 
   const value = {
@@ -161,8 +166,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
   return context
 }
