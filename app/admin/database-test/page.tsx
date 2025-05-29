@@ -24,6 +24,12 @@ import { migrateSupabaseToFirebase, validateMigration, type MigrationResult } fr
 import { getTopics as supabaseGetTopics } from "@/lib/supabase-new"
 import { firebaseGetTopics } from "@/lib/firebase-service"
 import { runCompleteMigration, type CompleteMigrationResult } from "@/lib/complete-migration"
+import {
+  runRobustMigration,
+  testFirebaseConnection,
+  clearFirebaseCollections,
+  type RobustMigrationResult,
+} from "@/lib/robust-migration"
 
 interface TestResult {
   name: string
@@ -45,6 +51,8 @@ export default function DatabaseTestPage() {
   const [validationResult, setValidationResult] = useState<any>(null)
   const { toast } = useToast()
   const [completeMigrationResults, setCompleteMigrationResults] = useState<CompleteMigrationResult | null>(null)
+  const [robustMigrationResults, setRobustMigrationResults] = useState<RobustMigrationResult | null>(null)
+  const [connectionTest, setConnectionTest] = useState<{ success: boolean; error?: string } | null>(null)
 
   const config = getDatabaseConfig()
 
@@ -296,6 +304,65 @@ export default function DatabaseTestPage() {
     }
   }
 
+  const runRobustMigrationProcess = async () => {
+    setIsLoading(true)
+    try {
+      // First test connection
+      const connectionResult = await testFirebaseConnection()
+      setConnectionTest(connectionResult)
+
+      if (!connectionResult.success) {
+        toast({
+          title: "Connection Failed",
+          description: connectionResult.error || "Failed to connect to Firebase",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Robust Migration Started",
+        description: "Running comprehensive migration with error handling...",
+      })
+
+      const results = await runRobustMigration()
+      setRobustMigrationResults(results)
+
+      toast({
+        title: "Robust Migration Completed",
+        description: `Migrated ${results.totalMigrated} items, skipped ${results.totalSkipped}, ${results.totalErrors} errors`,
+        variant: results.totalErrors > 0 ? "destructive" : "default",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Robust Migration Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const clearFirebaseData = async () => {
+    setIsLoading(true)
+    try {
+      await clearFirebaseCollections()
+      toast({
+        title: "Firebase Data Cleared",
+        description: "All Firebase collections have been cleared",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Clear Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
@@ -386,6 +453,16 @@ export default function DatabaseTestPage() {
                 Run COMPLETE Migration (All Data)
               </Button>
 
+              <Button onClick={runRobustMigrationProcess} disabled={isLoading} className="w-full" variant="default">
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                Run ROBUST Migration (With Error Handling)
+              </Button>
+
+              <Button onClick={clearFirebaseData} disabled={isLoading} className="w-full" variant="destructive">
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                Clear Firebase Data (For Testing)
+              </Button>
+
               {migrationResults && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Migration Results:</h3>
@@ -461,6 +538,81 @@ export default function DatabaseTestPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {robustMigrationResults && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Robust Migration Results:</h3>
+                  <div className="p-4 border rounded-lg">
+                    <div className="grid grid-cols-4 gap-4 text-sm mb-4">
+                      <div>
+                        <span className="text-muted-foreground">Migrated:</span>
+                        <span className="ml-2 font-medium text-green-600">{robustMigrationResults.totalMigrated}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Skipped:</span>
+                        <span className="ml-2 font-medium text-yellow-600">{robustMigrationResults.totalSkipped}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Errors:</span>
+                        <span className="ml-2 font-medium text-red-600">{robustMigrationResults.totalErrors}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Status:</span>
+                        <span
+                          className={`ml-2 font-medium ${robustMigrationResults.success ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {robustMigrationResults.success ? "Success" : "Failed"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {Object.entries(robustMigrationResults.details).map(([key, detail]) => (
+                        <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <span className="font-medium capitalize">{key}</span>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-blue-600">📝 {detail.attempted}</span>
+                            <span className="text-green-600">✓ {detail.migrated}</span>
+                            <span className="text-yellow-600">⏭ {detail.skipped}</span>
+                            <span className="text-red-600">✗ {detail.errors.length}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {robustMigrationResults.totalErrors > 0 && (
+                      <div className="mt-4">
+                        <h4 className="font-medium text-red-600 mb-2">Errors:</h4>
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {Object.entries(robustMigrationResults.details).map(([key, detail]) =>
+                            detail.errors.map((error, index) => (
+                              <div key={`${key}-${index}`} className="text-xs text-red-500 p-1 bg-red-50 rounded">
+                                <strong>{key}:</strong> {error}
+                              </div>
+                            )),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {connectionTest && (
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Firebase Connection Test</h4>
+                  <div className="flex items-center gap-2">
+                    {connectionTest.success ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={connectionTest.success ? "text-green-600" : "text-red-600"}>
+                      {connectionTest.success ? "Connection Successful" : `Connection Failed: ${connectionTest.error}`}
+                    </span>
                   </div>
                 </div>
               )}

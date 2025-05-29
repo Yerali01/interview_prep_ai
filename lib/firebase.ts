@@ -12,13 +12,31 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+// Initialize Firebase only if it hasn't been initialized
+let app
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig)
+  console.log("🔥 Firebase initialized successfully")
+} else {
+  app = getApps()[0]
+  console.log("🔥 Firebase already initialized")
+}
 
-// Initialize Firebase Authentication and get a reference to the service
+// Initialize Auth
 export const auth = getAuth(app)
 
-// Initialize Cloud Firestore and get a reference to the service
+// Initialize Firestore
 export const db = getFirestore(app)
+
+// Enable offline persistence
+if (typeof window !== "undefined") {
+  // Only run on client side
+  import("firebase/firestore").then(({ enableNetwork, disableNetwork }) => {
+    // Enable network by default
+    enableNetwork(db).catch((error) => {
+      console.warn("Failed to enable Firestore network:", error)
+    })
+  })
+}
 
 export default app
