@@ -252,9 +252,6 @@ async function migrateProjectsRobust(detail: MigrationDetail): Promise<void> {
           image_url: sanitizeData(project.image_url) || null,
           is_pet_project: Boolean(project.is_pet_project),
           real_world_example: sanitizeData(project.real_world_example) || null,
-          // Store technologies and features as arrays in the project document
-          technologies: sanitizeData(project.technologies) || [],
-          features: sanitizeData(project.features) || [],
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         }
@@ -265,13 +262,47 @@ async function migrateProjectsRobust(detail: MigrationDetail): Promise<void> {
           continue
         }
 
-        // Add to Firebase with a specific document ID based on slug
-        const projectRef = doc(db, "projects", projectData.slug)
-        await setDoc(projectRef, projectData)
+        // Add to Firebase
+        const projectRef = await addDoc(collection(db, "projects"), projectData)
         detail.migrated++
         console.log(`✅ Migrated project: ${projectData.name}`)
-        console.log(`📦 Technologies: ${projectData.technologies.length}`)
-        console.log(`🎯 Features: ${projectData.features.length}`)
+
+        // Migrate project technologies
+        if (project.technologies && Array.isArray(project.technologies)) {
+          for (const tech of project.technologies) {
+            try {
+              const techData = {
+                project_id: projectRef.id,
+                technology_name: sanitizeData(tech.technology_name) || "Unknown",
+                explanation: sanitizeData(tech.explanation) || "",
+                is_required: Boolean(tech.is_required),
+                category: sanitizeData(tech.category) || "general",
+              }
+
+              await addDoc(collection(db, "project_technologies"), techData)
+            } catch (error: any) {
+              console.error(`❌ Failed to migrate technology for project ${project.slug}:`, error)
+            }
+          }
+        }
+
+        // Migrate project features
+        if (project.features && Array.isArray(project.features)) {
+          for (const feature of project.features) {
+            try {
+              const featureData = {
+                project_id: projectRef.id,
+                feature_name: sanitizeData(feature.feature_name) || "Unknown Feature",
+                description: sanitizeData(feature.description) || "",
+                priority: sanitizeData(feature.priority) || "medium",
+              }
+
+              await addDoc(collection(db, "project_features"), featureData)
+            } catch (error: any) {
+              console.error(`❌ Failed to migrate feature for project ${project.slug}:`, error)
+            }
+          }
+        }
       } catch (error: any) {
         detail.errors.push(`Project ${project.slug}: ${error.message}`)
         console.error(`❌ Failed to migrate project ${project.slug}:`, error)

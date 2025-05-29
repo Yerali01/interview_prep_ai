@@ -157,6 +157,7 @@ export default function ProjectsPage() {
           <p className="text-muted-foreground">
             Discover interesting Flutter and Dart projects to build and learn from. From beginner-friendly apps to
             advanced applications that started as pet projects.
+            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🔥 Powered by Firebase</span>
           </p>
         </div>
 

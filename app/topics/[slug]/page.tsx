@@ -225,7 +225,7 @@ void main() async {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Topic Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The topic you're looking for doesn't exist or has been moved."}
+            {error || "The topic you're looking for doesn't exist in Firebase or has been moved."}
           </p>
           <Button asChild>
             <Link href="/topics">Browse All Topics</Link>
@@ -266,7 +266,7 @@ void main() async {
             className="flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            Refresh from Firebase
           </Button>
         </div>
       </div>
@@ -277,6 +277,9 @@ void main() async {
           <div className="flex items-center text-muted-foreground">
             <span className="capitalize mr-4">{topic.level} Level</span>
             <span>{topic.estimated_time} min read</span>
+            <span className="ml-4 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+              🔥 Loaded from Firebase
+            </span>
           </div>
         </div>
 

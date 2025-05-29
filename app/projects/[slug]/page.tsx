@@ -174,6 +174,9 @@ export default function ProjectDetailPage() {
                       Pet Project
                     </Badge>
                   )}
+                  <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                    🔥 Firebase
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge className={getDifficultyColor(project.difficulty_level)}>{project.difficulty_level}</Badge>
