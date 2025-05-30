@@ -52,6 +52,14 @@ export default function ProfilePage() {
     fetchQuizResults()
   }, [user])
 
+  // Add this useEffect to debug the GitHub username
+  useEffect(() => {
+    if (user?.github_username) {
+      console.log("GitHub username from user object:", user.github_username)
+      console.log("Full user object:", user)
+    }
+  }, [user])
+
   const handleLinkGitHub = async () => {
     setLinkingGitHub(true)
     try {
@@ -195,8 +203,10 @@ export default function ProfilePage() {
                             href={`https://github.com/${user.github_username}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            className="flex items-center gap-2"
                           >
-                            View Profile
+                            <Github className="h-4 w-4" />
+                            View GitHub Profile
                           </a>
                         </Button>
                       </div>

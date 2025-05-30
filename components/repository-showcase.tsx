@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Star, GitFork, ExternalLink, Github } from "lucide-react"
-import { getLanguageColor, timeAgo } from "@/lib/github-api"
+import { Star, GitFork, ExternalLink, Github, Share } from "lucide-react"
+import { getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
 import { firebaseGetUserRepositories } from "@/lib/firebase-service"
+import { useToast } from "@/hooks/use-toast"
 
 interface Repository {
   id: number
@@ -32,6 +33,7 @@ interface RepositoryShowcaseProps {
 export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsername }: RepositoryShowcaseProps) {
   const [repositories, setRepositories] = useState<Repository[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
     loadRepositories()
@@ -45,6 +47,24 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
       console.error("Error loading repositories:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleShareRepositories = () => {
+    if (repositories.length === 0) return
+
+    try {
+      shareRepositories(repositories, githubUsername || "")
+      toast({
+        title: "Repositories Shared!",
+        description: "Repository list has been copied to clipboard or shared.",
+      })
+    } catch (error) {
+      toast({
+        title: "Share Failed",
+        description: "Could not share repositories. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -108,14 +128,22 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
               {repositories.length} repository{repositories.length !== 1 ? "ies" : ""} showcased
             </CardDescription>
           </div>
-          {githubUsername && (
-            <Button variant="outline" size="sm" asChild>
-              <a href={`https://github.com/${githubUsername}`} target="_blank" rel="noopener noreferrer">
-                View All on GitHub
-                <ExternalLink className="h-3 w-3 ml-1" />
-              </a>
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {repositories.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleShareRepositories}>
+                <Share className="h-3 w-3 mr-1" />
+                Share
+              </Button>
+            )}
+            {githubUsername && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={`https://github.com/${githubUsername}`} target="_blank" rel="noopener noreferrer">
+                  View All on GitHub
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
