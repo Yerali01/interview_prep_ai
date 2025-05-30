@@ -167,6 +167,10 @@ export async function getTopicBySlug(slug: string): Promise<Topic | null> {
   return data as Topic
 }
 
+// Export with supabase prefix for dual database service
+export const supabaseGetTopics = getTopics
+export const supabaseGetTopicBySlug = getTopicBySlug
+
 // Definition functions
 export async function getDefinitions(): Promise<Definition[]> {
   const { data, error } = await supabase.from("definitions").select("*").order("term", { ascending: true })
@@ -228,6 +232,10 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
   return data as Project
 }
 
+// Export with supabase prefix for dual database service
+export const supabaseGetProjects = getProjects
+export const supabaseGetProjectBySlug = getProjectBySlug
+
 // Quiz functions
 export async function getQuizzes() {
   const { data, error } = await supabase.from("quizzes").select("*").order("id", { ascending: true })
@@ -268,6 +276,33 @@ export async function getQuizBySlug(slug: string) {
 
   return { ...quiz, questions: parsedQuestions }
 }
+
+export async function getQuestionsByQuizSlug(quizSlug: string) {
+  const { data: questions, error } = await supabase.from("questions").select("*").eq("quiz_slug", quizSlug)
+
+  if (error) {
+    console.error("Error fetching questions for quiz:", error)
+    throw error
+  }
+
+  const parsedQuestions = questions.map((question) => {
+    try {
+      if (typeof question.options === "string") {
+        question.options = JSON.parse(question.options)
+      }
+    } catch (e) {
+      console.error("Error parsing question options:", e)
+    }
+    return question
+  })
+
+  return parsedQuestions
+}
+
+// Export with supabase prefix for dual database service
+export const supabaseGetQuizzes = getQuizzes
+export const supabaseGetQuizBySlug = getQuizBySlug
+export const supabaseGetQuestionsByQuizSlug = getQuestionsByQuizSlug
 
 export async function getQuizById(id: number | string) {
   const { data: quiz, error: quizError } = await supabase.from("quizzes").select("*").eq("id", id).single()
