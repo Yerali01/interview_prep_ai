@@ -12,7 +12,7 @@ import {
   linkWithPopup,
 } from "firebase/auth"
 import { getFirestore, doc, setDoc } from "firebase/firestore"
-import { app } from "@/firebase"
+import app from "@/lib/firebase"
 
 const auth = getAuth(app)
 const db = getFirestore(app)
