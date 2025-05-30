@@ -20,7 +20,8 @@ import {
   Package,
   Copy,
 } from "lucide-react"
-import { firebaseGetProjectBySlug, type Project, type Technology, type Feature } from "@/lib/firebase-service"
+import { firebaseGetProjectBySlug } from "@/lib/firebase-service-fixed"
+import type { Project, Technology } from "@/lib/firebase-service"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function ProjectDetailPage() {
@@ -41,6 +42,11 @@ export default function ProjectDetailPage() {
 
         const projectData = await firebaseGetProjectBySlug(params.slug as string)
         console.log("🔥 Firebase project data received:", projectData)
+
+        if (!projectData) {
+          setError("Project not found")
+          return
+        }
 
         setProject(projectData)
       } catch (err) {
@@ -144,8 +150,8 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const technologies = (project.technologies as Technology[]) || []
-  const features = (project.features as Feature[]) || []
+  const technologies = Array.isArray(project.technologies) ? project.technologies : []
+  const features = Array.isArray(project.features) ? project.features : []
   const groupedTechnologies = groupTechnologiesByCategory(technologies)
 
   console.log("Technologies:", technologies) // Debug log
@@ -421,7 +427,6 @@ export default function ProjectDetailPage() {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Source</span>
-            
               </div>
             </CardContent>
           </Card>

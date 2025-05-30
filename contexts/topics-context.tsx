@@ -1,24 +1,34 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import { firebaseGetTopics, type Topic } from "@/lib/firebase-service-fixed"
+import { createContext, useState, useEffect, useContext, type ReactNode } from "react"
+import { firebaseGetTopics } from "@/lib/firebase-service-fixed"
 
-interface TopicsContextType {
+interface Topic {
+  id: string
+  name: string
+  description: string
+}
+
+interface TopicsContextProps {
   topics: Topic[]
   loading: boolean
   error: string | null
-  refreshTopics: () => Promise<void>
-  lastFetched: number | null
+  fetchTopics: () => Promise<void>
+  lastFetched: Date | null
 }
 
-const TopicsContext = createContext<TopicsContextType | undefined>(undefined)
+const TopicsContext = createContext<TopicsContextProps | undefined>(undefined)
 
-export function TopicsProvider({ children }: { children: React.ReactNode }) {
+interface TopicsProviderProps {
+  children: ReactNode
+}
+
+export const TopicsProvider: React.FC<TopicsProviderProps> = ({ children }) => {
   const [topics, setTopics] = useState<Topic[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [lastFetched, setLastFetched] = useState<number | null>(null)
+  const [lastFetched, setLastFetched] = useState<Date | null>(null)
 
   const fetchTopics = async () => {
     try {
@@ -27,77 +37,43 @@ export function TopicsProvider({ children }: { children: React.ReactNode }) {
       console.log("🔥 Fetching topics from Firebase...")
 
       const topicsData = await firebaseGetTopics()
-      console.log("🔥 Firebase topics received:", topicsData.length)
+      console.log("🔥 Firebase topics data received:", topicsData)
 
-      // Sort topics by level: junior -> middle -> senior
-      const levelOrder = { junior: 1, middle: 2, senior: 3 }
-      const sortedTopics = [...topicsData].sort(
-        (a, b) => levelOrder[a.level as keyof typeof levelOrder] - levelOrder[b.level as keyof typeof levelOrder],
-      )
-
-      setTopics(sortedTopics)
-      setLastFetched(Date.now())
-
-      // Store in localStorage for persistence across page refreshes
-      if (typeof window !== "undefined") {
-        localStorage.setItem("cachedTopics", JSON.stringify(sortedTopics))
-        localStorage.setItem("topicsCacheTimestamp", Date.now().toString())
+      if (Array.isArray(topicsData)) {
+        setTopics(topicsData)
+      } else {
+        console.warn("⚠️ Topics data is not an array:", topicsData)
+        setTopics([])
       }
+
+      setLastFetched(new Date())
     } catch (err) {
-      console.error("❌ Error fetching topics from Firebase:", err)
-      setError("Failed to load topics from Firebase")
+      console.error("❌ Error fetching topics:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch topics")
+      setTopics([])
     } finally {
       setLoading(false)
     }
   }
 
-  const refreshTopics = async () => {
-    await fetchTopics()
-  }
-
   useEffect(() => {
-    // Only access localStorage on the client side
-    if (typeof window !== "undefined") {
-      // Try to load from cache first
-      const cachedTopics = localStorage.getItem("cachedTopics")
-      const cacheTimestamp = localStorage.getItem("topicsCacheTimestamp")
-
-      if (cachedTopics && cacheTimestamp) {
-        try {
-          const parsedTopics = JSON.parse(cachedTopics)
-          setTopics(parsedTopics)
-          setLastFetched(Number.parseInt(cacheTimestamp))
-          setLoading(false)
-
-          // If cache is older than 1 hour, refresh in background
-          const ONE_HOUR = 60 * 60 * 1000
-          if (Date.now() - Number.parseInt(cacheTimestamp) > ONE_HOUR) {
-            console.log("🔥 Cache expired, refreshing topics from Firebase...")
-            fetchTopics()
-          }
-        } catch (err) {
-          console.error("Error parsing cached topics:", err)
-          fetchTopics()
-        }
-      } else {
-        fetchTopics()
-      }
-    } else {
-      // On server side, just fetch without cache
-      fetchTopics()
-    }
+    fetchTopics()
   }, [])
 
-  return (
-    <TopicsContext.Provider value={{ topics, loading, error, refreshTopics, lastFetched }}>
-      {children}
-    </TopicsContext.Provider>
-  )
+  const value: TopicsContextProps = {
+    topics,
+    loading,
+    error,
+    fetchTopics,
+    lastFetched,
+  }
+
+  return <TopicsContext.Provider value={value}>{children}</TopicsContext.Provider>
 }
 
-export function useTopics() {
+export const useTopics = (): TopicsContextProps => {
   const context = useContext(TopicsContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useTopics must be used within a TopicsProvider")
   }
   return context
