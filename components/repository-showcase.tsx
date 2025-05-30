@@ -4,10 +4,11 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Star, GitFork, ExternalLink, Github, Share, Loader2 } from "lucide-react"
+import { Star, GitFork, ExternalLink, Github, Share, Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
 import { getUserRepositories } from "@/lib/repository-service"
 import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 interface Repository {
   id: number
@@ -105,9 +106,15 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
           <CardDescription>Error loading repositories</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">{error}</p>
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+
+          <div className="text-center py-4">
             <Button onClick={loadRepositories} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
               Try Again
             </Button>
           </div>
@@ -148,9 +155,13 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
         </CardHeader>
         {isOwnProfile && (
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Go to your profile settings to select repositories to showcase.
+            <p className="text-sm text-muted-foreground mb-4">
+              Select repositories above to showcase them on your profile.
             </p>
+            <Button onClick={loadRepositories} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </CardContent>
         )}
       </Card>
@@ -171,6 +182,10 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={loadRepositories}>
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Refresh
+            </Button>
             {repositories.length > 0 && (
               <Button variant="outline" size="sm" onClick={handleShareRepositories}>
                 <Share className="h-3 w-3 mr-1" />

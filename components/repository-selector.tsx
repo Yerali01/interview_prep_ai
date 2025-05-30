@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Star, GitFork, ExternalLink, RefreshCw, Share } from "lucide-react"
+import { Loader2, Star, GitFork, ExternalLink, RefreshCw, Share, AlertCircle } from "lucide-react"
 import { GitHubAPI, type GitHubRepository, getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
-import { saveUserRepositories, getUserRepositories } from "@/lib/repository-service"
+import { saveUserRepositories, getUserRepositories, initializeUserRepositories } from "@/lib/repository-service"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 interface RepositorySelectorProps {
   userId: string
@@ -22,10 +23,14 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
-    if (githubUsername) {
+    if (userId && githubUsername) {
+      // Initialize repository structure for new users
+      initializeUserRepositories(userId).catch(console.error)
+
       loadRepositories()
       loadSavedRepositories()
     }
@@ -72,11 +77,7 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
       setSelectedRepos(savedRepoIds)
     } catch (error: any) {
       console.error("❌ Error loading saved repositories:", error)
-      toast({
-        title: "Error Loading Saved Repositories",
-        description: error.message || "Failed to load your saved repositories",
-        variant: "destructive",
-      })
+      // Don't show a toast here, just log the error
     }
   }
 
@@ -92,6 +93,8 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
 
   const handleSaveSelection = async () => {
     setSaving(true)
+    setSaveError(null)
+
     try {
       console.log("💾 Saving repository selection")
       const selectedRepositories = repositories
@@ -120,6 +123,7 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
       })
     } catch (error: any) {
       console.error("❌ Error saving repositories:", error)
+      setSaveError(error.message || "Failed to save repositories")
       toast({
         title: "Failed to Save",
         description: error.message || "An error occurred while saving your repository selection.",
@@ -223,6 +227,14 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
         </div>
       </CardHeader>
       <CardContent>
+        {saveError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin" />
