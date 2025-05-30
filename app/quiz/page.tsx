@@ -1,13 +1,10 @@
-import { Suspense } from "react"
-import QuizContentClient from "./quiz-content-client"
 import { QuizProvider } from "@/contexts/quiz-context"
+import QuizContentClient from "./quiz-content-client"
 
 export default function QuizPage() {
   return (
     <QuizProvider>
-      <Suspense fallback={<div>Loading quizzes...</div>}>
-        <QuizContentClient />
-      </Suspense>
+      <QuizContentClient />
     </QuizProvider>
   )
 }

@@ -9,6 +9,9 @@ interface Quiz {
   title: string
   description: string
   questions: Question[]
+  slug?: string
+  level?: string
+  createdAt?: string
 }
 
 interface Question {
@@ -22,17 +25,11 @@ interface QuizContextProps {
   quizzes: Quiz[]
   loading: boolean
   error: string | null
-  fetchQuizzes: () => Promise<void>
+  refreshQuizzes: () => Promise<void>
   lastFetched: Date | null
 }
 
-const QuizContext = createContext<QuizContextProps>({
-  quizzes: [],
-  loading: false,
-  error: null,
-  fetchQuizzes: async () => {},
-  lastFetched: null,
-})
+const QuizContext = createContext<QuizContextProps | undefined>(undefined)
 
 interface QuizProviderProps {
   children: ReactNode
@@ -44,7 +41,7 @@ export const QuizProvider: React.FC<QuizProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
 
-  const fetchQuizzes = async () => {
+  const refreshQuizzes = async () => {
     try {
       setLoading(true)
       setError(null)
@@ -71,14 +68,24 @@ export const QuizProvider: React.FC<QuizProviderProps> = ({ children }) => {
   }
 
   useEffect(() => {
-    fetchQuizzes()
+    refreshQuizzes()
   }, [])
 
   return (
-    <QuizContext.Provider value={{ quizzes, loading, error, fetchQuizzes, lastFetched }}>
+    <QuizContext.Provider value={{ quizzes, loading, error, refreshQuizzes, lastFetched }}>
       {children}
     </QuizContext.Provider>
   )
 }
 
-export const useQuiz = () => useContext(QuizContext)
+// Export the hook with the correct name that matches the import
+export const useQuizzes = () => {
+  const context = useContext(QuizContext)
+  if (context === undefined) {
+    throw new Error("useQuizzes must be used within a QuizProvider")
+  }
+  return context
+}
+
+// Also export with the alternative name for backward compatibility
+export const useQuiz = useQuizzes
