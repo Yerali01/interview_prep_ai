@@ -15,6 +15,8 @@ import { firebaseGetUserQuizResults } from "@/lib/firebase-service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { RepositorySelector } from "@/components/repository-selector"
+import { RepositoryShowcase } from "@/components/repository-showcase"
 
 export default function ProfilePage() {
   const { user, loading: isLoading, signOut, linkGitHubAccount } = useAuth()
@@ -112,8 +114,9 @@ export default function ProfilePage() {
       </Button>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="repositories">Repositories</TabsTrigger>
           <TabsTrigger value="quiz-history">Quiz History</TabsTrigger>
         </TabsList>
 
@@ -224,6 +227,41 @@ export default function ProfilePage() {
                 </Button>
               </CardFooter>
             </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="repositories">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-6"
+          >
+            {user.github_username ? (
+              <>
+                <RepositorySelector userId={user.id} githubUsername={user.github_username} />
+                <RepositoryShowcase userId={user.id} isOwnProfile={true} githubUsername={user.github_username} />
+              </>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Repository Showcase</CardTitle>
+                  <CardDescription>Connect your GitHub account to showcase your repositories</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <Github className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">
+                      Link your GitHub account to display your repositories on your profile.
+                    </p>
+                    <Button onClick={handleLinkGitHub} disabled={linkingGitHub} className="flex items-center gap-2">
+                      {linkingGitHub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Github className="h-4 w-4" />}
+                      Link GitHub Account
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </motion.div>
         </TabsContent>
 

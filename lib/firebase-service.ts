@@ -693,6 +693,86 @@ export async function firebaseGetQuizById(id: string): Promise<Quiz | null> {
   }
 }
 
+// Repository showcase functions
+export async function firebaseSaveUserRepositories(userId: string, repositories: any[]) {
+  try {
+    console.log(`🔥 Firebase: Saving showcased repositories for user ${userId}`)
+    await setDoc(
+      doc(db, "user_repositories", userId),
+      {
+        user_id: userId,
+        repositories,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true },
+    )
+    console.log("✅ Firebase: User repositories saved successfully")
+    return { error: null }
+  } catch (error: any) {
+    console.error("❌ Firebase: Error saving user repositories:", error)
+    return { error }
+  }
+}
+
+export async function firebaseGetUserRepositories(userId: string) {
+  try {
+    console.log(`🔥 Firebase: Fetching showcased repositories for user ${userId}`)
+    const docRef = doc(db, "user_repositories", userId)
+    const docSnap = await getDoc(docRef)
+
+    if (!docSnap.exists()) {
+      console.log("❌ Firebase: No repositories found for user")
+      return []
+    }
+
+    const data = docSnap.data()
+    console.log(`✅ Firebase: Retrieved ${data.repositories?.length || 0} repositories`)
+    return data.repositories || []
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching user repositories:", error)
+    throw error
+  }
+}
+
+export async function firebaseGetPublicUserProfile(userId: string) {
+  try {
+    console.log(`🔥 Firebase: Fetching public profile for user ${userId}`)
+
+    // Get user basic info
+    const userDocRef = doc(db, "users", userId)
+    const userDocSnap = await getDoc(userDocRef)
+
+    if (!userDocSnap.exists()) {
+      return null
+    }
+
+    const userData = userDocSnap.data()
+
+    // Get user's showcased repositories
+    const repositories = await firebaseGetUserRepositories(userId)
+
+    // Get user's quiz results count
+    const quizResultsQuery = query(collection(db, "user_quiz_results"), where("user_id", "==", userId))
+    const quizResultsSnapshot = await getDocs(quizResultsQuery)
+
+    const profile = {
+      id: userId,
+      display_name: userData.display_name,
+      github_username: userData.github_username,
+      github_avatar: userData.github_avatar,
+      repositories,
+      quiz_count: quizResultsSnapshot.size,
+      created_at: userData.created_at?.toDate?.()?.toISOString() || userData.created_at,
+    }
+
+    console.log("✅ Firebase: Public profile retrieved successfully")
+    return profile
+  } catch (error: any) {
+    console.error("❌ Firebase: Error fetching public profile:", error)
+    throw error
+  }
+}
+
 // User progress functions
 export async function firebaseSaveQuizResult(userId: string, quizId: string, score: number, totalQuestions: number) {
   try {
