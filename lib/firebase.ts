@@ -2,6 +2,7 @@ import { initializeApp, getApps } from "firebase/app"
 import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
 
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -20,17 +21,5 @@ export const auth = getAuth(app)
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app)
-
-// Connect to emulators in development (optional)
-if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
-  // Only connect to emulators in development and on client side
-  try {
-    // Uncomment these lines if you want to use Firebase emulators in development
-    // connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true })
-    // connectFirestoreEmulator(db, "localhost", 8080)
-  } catch (error) {
-    console.log("Firebase emulators already connected or not available")
-  }
-}
 
 export default app

@@ -1,63 +1,61 @@
-import { signInWithPopup, GithubAuthProvider, signOut } from "firebase/auth"
-import { doc, setDoc, getDoc } from "firebase/firestore"
+"use client"
+
+// This file is now deprecated - all functionality has been moved to components/auth/auth-provider.tsx
+// We're keeping this file to avoid breaking imports, but it should be removed in the future
+
 import { auth, db } from "./firebase"
 
-const githubProvider = new GithubAuthProvider()
+// Re-export auth and db for backward compatibility
+export { auth, db }
 
-const signInWithGitHub = async () => {
-  try {
-    const result = await signInWithPopup(auth, githubProvider)
-    const credential = GithubAuthProvider.credentialFromResult(result)
-    const user = result.user
+// Warn about deprecated usage
+console.warn("firebase-service.ts is deprecated. Please use components/auth/auth-provider.tsx instead.")
 
-    if (credential?.accessToken) {
-      const githubResponse = await fetch("https://api.github.com/user", {
-        headers: {
-          Authorization: `token ${credential.accessToken}`,
-        },
-      })
-
-      const githubUser = await githubResponse.json()
-
-      // When storing GitHub user data
-      const userData = {
-        email: user.email,
-        display_name: githubUser.name || githubUser.login,
-        github_username: githubUser.login, // Use 'login' field from GitHub API
-        github_avatar: githubUser.avatar_url,
-        github_access_token: credential.accessToken,
-        email_confirmed_at: user.emailVerified ? new Date().toISOString() : null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-
-      const userDocRef = doc(db, "users", user.uid)
-      const docSnap = await getDoc(userDocRef)
-
-      if (!docSnap.exists()) {
-        await setDoc(userDocRef, userData)
-      } else {
-        await setDoc(userDocRef, {
-          ...userData,
-          updated_at: new Date().toISOString(),
-        })
-      }
-    }
-
-    return user
-  } catch (error) {
-    console.error("Error signing in with GitHub", error)
-    throw error
-  }
+// Export empty functions for backward compatibility
+export const firebaseSignUp = async () => {
+  console.error("firebaseSignUp is deprecated. Please use useAuth().signUp instead.")
+  return { user: null, error: { message: "Function deprecated", code: "deprecated" } }
 }
 
-const signOutFirebase = async () => {
-  try {
-    await signOut(auth)
-  } catch (error) {
-    console.error("Error signing out", error)
-    throw error
-  }
+export const firebaseSignIn = async () => {
+  console.error("firebaseSignIn is deprecated. Please use useAuth().signIn instead.")
+  return { user: null, error: { message: "Function deprecated", code: "deprecated" } }
 }
 
-export { auth, db, signInWithGitHub, signOutFirebase }
+export const firebaseSignInWithGitHub = async () => {
+  console.error("firebaseSignInWithGitHub is deprecated. Please use useAuth().signInWithGitHub instead.")
+  return { user: null, error: { message: "Function deprecated", code: "deprecated" } }
+}
+
+export const firebaseLinkGitHubAccount = async () => {
+  console.error("firebaseLinkGitHubAccount is deprecated. Please use useAuth().linkGitHubAccount instead.")
+  return { user: null, error: { message: "Function deprecated", code: "deprecated" } }
+}
+
+export const firebaseSignOut = async () => {
+  console.error("firebaseSignOut is deprecated. Please use useAuth().signOut instead.")
+  return { error: { message: "Function deprecated", code: "deprecated" } }
+}
+
+export const firebaseResetPassword = async () => {
+  console.error("firebaseResetPassword is deprecated. Please use useAuth().resetPassword instead.")
+  return { error: { message: "Function deprecated", code: "deprecated" } }
+}
+
+export const onFirebaseAuthStateChanged = () => {
+  console.error("onFirebaseAuthStateChanged is deprecated. Please use useAuth() instead.")
+  return () => {}
+}
+
+// Keep data functions for backward compatibility
+export const firebaseGetTopics = async () => {
+  console.error("firebaseGetTopics is deprecated. Please update your code.")
+  return []
+}
+
+export const firebaseGetTopicBySlug = async () => {
+  console.error("firebaseGetTopicBySlug is deprecated. Please update your code.")
+  return null
+}
+
+// Add other deprecated functions as needed

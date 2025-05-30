@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
+import { ArrowLeft, Loader2, AlertCircle, Eye, EyeOff, Github } from "lucide-react"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
@@ -24,76 +24,70 @@ export default function SignUpPage() {
   const [generalError, setGeneralError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const { signUp } = useAuth()
+  const { signUp, signInWithGitHub } = useAuth()
   const router = useRouter()
 
   const validatePassword = () => {
-    console.log("🔍 Validating password...")
-    console.log("Password length:", password.length)
-    console.log("Passwords match:", password === confirmPassword)
-
     if (password !== confirmPassword) {
       setPasswordError("Passwords do not match")
-      console.log("❌ Password validation failed: passwords don't match")
       return false
     }
     if (password.length < 6) {
       setPasswordError("Password must be at least 6 characters")
-      console.log("❌ Password validation failed: too short")
       return false
     }
     setPasswordError("")
-    console.log("✅ Password validation passed")
     return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("🚀 Sign up form submitted")
-    console.log("📧 Email:", email)
-    console.log("🔒 Password length:", password.length)
-
     setGeneralError("")
 
     if (!validatePassword()) {
-      console.log("❌ Form submission stopped: password validation failed")
       return
     }
 
     try {
       setIsSubmitting(true)
-      console.log("📤 Calling signUp function...")
-
       await signUp(email, password)
-
-      console.log("✅ Sign up function completed successfully")
       setShowSuccess(true)
 
       // Show success message and redirect
       setTimeout(() => {
-        console.log("🔄 Redirecting to home page...")
         router.push("/")
       }, 2000)
     } catch (error: any) {
-      console.error("❌ Sign up form error:", error)
-      console.error("Error message:", error.message)
-      console.error("Error details:", error)
+      console.error("Sign up error:", error)
 
       // Handle specific Firebase auth errors
       let errorMessage = error.message || "An unexpected error occurred. Please try again."
 
-      if (error.message?.includes("email-already-in-use")) {
+      if (errorMessage.includes("email-already-in-use")) {
         errorMessage = "An account with this email already exists. Please sign in instead."
-      } else if (error.message?.includes("invalid-email")) {
+      } else if (errorMessage.includes("invalid-email")) {
         errorMessage = "Please enter a valid email address."
-      } else if (error.message?.includes("weak-password")) {
+      } else if (errorMessage.includes("weak-password")) {
         errorMessage = "Password is too weak. Please choose a stronger password."
       }
 
       setGeneralError(errorMessage)
     } finally {
       setIsSubmitting(false)
-      console.log("🏁 Form submission process completed")
+    }
+  }
+
+  const handleGitHubSignUp = async () => {
+    try {
+      setIsSubmitting(true)
+      setGeneralError("")
+      await signInWithGitHub()
+      router.push("/")
+    } catch (error: any) {
+      console.error("GitHub sign up error:", error)
+      setGeneralError(error.message || "Failed to sign up with GitHub. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -219,6 +213,27 @@ export default function SignUpPage() {
                   "Sign Up"
                 )}
               </Button>
+
+              <div className="relative w-full">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGitHubSignUp}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Github className="mr-2 h-4 w-4" />}
+                Sign up with GitHub
+              </Button>
+
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
                 <Link href="/auth/sign-in" className="text-primary hover:underline">

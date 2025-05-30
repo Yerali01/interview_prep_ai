@@ -1,48 +1,49 @@
 "use client"
 
-import { useState, useEffect, useContext, createContext, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import {
-  getAuth,
+  type User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
-  signOut,
+  sendPasswordResetEmail,
+  sendEmailVerification,
   signInWithPopup,
   GithubAuthProvider,
-  updateProfile,
-  type User,
-  linkWithPopup,
 } from "firebase/auth"
-import { getFirestore, doc, setDoc } from "firebase/firestore"
-import app from "@/lib/firebase"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 
-const auth = getAuth(app)
-const db = getFirestore(app)
-
-interface Auth {
+interface AuthContextType {
   user: User | null
   loading: boolean
+  signUp: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
   signInWithGitHub: () => Promise<void>
   signOut: () => Promise<void>
-  linkGitHubAccount: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
 }
 
-const AuthContext = createContext<Auth>({
+const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  signUp: async () => {},
+  signIn: async () => {},
   signInWithGitHub: async () => {},
   signOut: async () => {},
-  linkGitHubAccount: async () => {},
+  resetPassword: async () => {},
 })
 
-interface AuthProviderProps {
-  children: ReactNode
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Listen for auth state changes
   useEffect(() => {
+    console.log("Setting up auth state listener")
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? "User logged in" : "No user")
       setUser(user)
       setLoading(false)
     })
@@ -50,105 +51,149 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => unsubscribe()
   }, [])
 
-  const signInWithGitHub = async () => {
-    setLoading(true)
-    const provider = new GithubAuthProvider()
-
+  // Sign up with email and password
+  const signUp = async (email: string, password: string) => {
     try {
-      const result = await signInWithPopup(auth, provider)
-      const user = result.user
-      const credential = GithubAuthProvider.credentialFromResult(result)
+      setLoading(true)
+      console.log("Signing up with email:", email)
 
-      if (credential) {
-        const githubResponse = await fetch("https://api.github.com/user", {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+
+      console.log("User created successfully:", user.uid)
+
+      // Send email verification
+      await sendEmailVerification(user)
+      console.log("Verification email sent")
+
+      // Create user profile in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        email_verified: user.emailVerified,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      })
+
+      console.log("User profile created in Firestore")
+    } catch (error: any) {
+      console.error("Sign up error:", error.message)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Sign in with email and password
+  const signIn = async (email: string, password: string) => {
+    try {
+      setLoading(true)
+      console.log("Signing in with email:", email)
+
+      await signInWithEmailAndPassword(auth, email, password)
+      console.log("Sign in successful")
+    } catch (error: any) {
+      console.error("Sign in error:", error.message)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Sign in with GitHub
+  const signInWithGitHub = async () => {
+    try {
+      setLoading(true)
+      console.log("Signing in with GitHub")
+
+      const provider = new GithubAuthProvider()
+      provider.addScope("user:email")
+      provider.addScope("read:user")
+
+      const result = await signInWithPopup(auth, provider)
+      const credential = GithubAuthProvider.credentialFromResult(result)
+      const user = result.user
+
+      console.log("GitHub sign in successful")
+
+      if (credential?.accessToken) {
+        // Get GitHub user data
+        const response = await fetch("https://api.github.com/user", {
           headers: {
             Authorization: `token ${credential.accessToken}`,
           },
         })
 
-        const githubUserData = await githubResponse.json()
+        const githubData = await response.json()
 
-        await updateProfile(user, {
-          displayName: githubUserData.name || githubUserData.login,
-        })
-
+        // Update user profile in Firestore
         await setDoc(
           doc(db, "users", user.uid),
           {
-            github_username: githubUserData.login,
-            github_avatar: githubUserData.avatar_url,
+            uid: user.uid,
+            email: user.email,
+            email_verified: user.emailVerified,
+            display_name: githubData.name || githubData.login,
+            github_username: githubData.login,
+            github_avatar: githubData.avatar_url,
             github_access_token: credential.accessToken,
-            updated_at: new Date().toISOString(),
+            updated_at: serverTimestamp(),
           },
           { merge: true },
         )
+
+        console.log("GitHub profile saved to Firestore")
       }
-    } catch (error) {
-      console.error("Error signing in with GitHub:", error)
+    } catch (error: any) {
+      console.error("GitHub sign in error:", error.message)
+      throw error
     } finally {
       setLoading(false)
     }
   }
 
-  const signOutUser = async () => {
+  // Sign out
+  const signOut = async () => {
     try {
       setLoading(true)
-      await signOut(auth)
-    } catch (error) {
-      console.error("Error signing out:", error)
+      console.log("Signing out")
+
+      await firebaseSignOut(auth)
+      console.log("Sign out successful")
+    } catch (error: any) {
+      console.error("Sign out error:", error.message)
+      throw error
     } finally {
       setLoading(false)
     }
   }
 
-  const linkGitHubAccount = async () => {
-    const provider = new GithubAuthProvider()
-
+  // Reset password
+  const resetPassword = async (email: string) => {
     try {
-      const result = await linkWithPopup(auth.currentUser!, provider)
-      const credential = GithubAuthProvider.credentialFromResult(result)
+      console.log("Sending password reset email to:", email)
 
-      if (credential) {
-        const githubResponse = await fetch("https://api.github.com/user", {
-          headers: {
-            Authorization: `token ${credential.accessToken}`,
-          },
-        })
-
-        // After getting GitHub user data
-        const githubUserData = await githubResponse.json()
-
-        // Update user profile with GitHub info
-        await updateProfile(auth.currentUser!, {
-          displayName: githubUserData.name || githubUserData.login,
-        })
-
-        // Store GitHub info in Firestore with correct field names
-        await setDoc(
-          doc(db, "users", auth.currentUser!.uid),
-          {
-            github_username: githubUserData.login, // This should be 'login', not 'username'
-            github_avatar: githubUserData.avatar_url,
-            github_access_token: credential.accessToken,
-            updated_at: new Date().toISOString(),
-          },
-          { merge: true },
-        )
-      }
-    } catch (error) {
-      console.error("Error linking GitHub account:", error)
+      await sendPasswordResetEmail(auth, email)
+      console.log("Password reset email sent")
+    } catch (error: any) {
+      console.error("Password reset error:", error.message)
+      throw error
     }
   }
 
-  const value: Auth = {
+  const value = {
     user,
     loading,
+    signUp,
+    signIn,
     signInWithGitHub,
-    signOut: signOutUser,
-    linkGitHubAccount,
+    signOut,
+    resetPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export const useAuth = () => useContext(AuthContext)
+export function useAuth() {
+  return useContext(AuthContext)
+}

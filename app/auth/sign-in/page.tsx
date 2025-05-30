@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Loader2, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Eye, EyeOff, AlertCircle, Github } from "lucide-react"
 
 export default function SignInPage() {
   const [email, setEmail] = useState("")
@@ -20,34 +20,46 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [generalError, setGeneralError] = useState("")
-  const { signIn } = useAuth()
+  const { signIn, signInWithGitHub } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("🚀 Sign in form submitted")
-    console.log("📧 Email:", email)
-
     setGeneralError("")
 
     try {
       setIsSubmitting(true)
-      console.log("📤 Calling signIn function...")
-
       await signIn(email, password)
-
-      console.log("✅ Sign in function completed successfully")
-      // Redirect to home page
       router.push("/")
     } catch (error: any) {
-      console.error("❌ Sign in form error:", error)
-      console.error("Error message:", error.message)
-      console.error("Error details:", error)
+      console.error("Sign in error:", error)
 
-      setGeneralError(error.message || "An unexpected error occurred. Please try again.")
+      // Handle specific Firebase auth errors
+      let errorMessage = error.message || "An unexpected error occurred. Please try again."
+
+      if (errorMessage.includes("user-not-found") || errorMessage.includes("wrong-password")) {
+        errorMessage = "Invalid email or password. Please try again."
+      } else if (errorMessage.includes("too-many-requests")) {
+        errorMessage = "Too many failed login attempts. Please try again later."
+      }
+
+      setGeneralError(errorMessage)
     } finally {
       setIsSubmitting(false)
-      console.log("🏁 Form submission process completed")
+    }
+  }
+
+  const handleGitHubSignIn = async () => {
+    try {
+      setIsSubmitting(true)
+      setGeneralError("")
+      await signInWithGitHub()
+      router.push("/")
+    } catch (error: any) {
+      console.error("GitHub sign in error:", error)
+      setGeneralError(error.message || "Failed to sign in with GitHub. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -135,6 +147,27 @@ export default function SignInPage() {
                   "Sign In"
                 )}
               </Button>
+
+              <div className="relative w-full">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGitHubSignIn}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Github className="mr-2 h-4 w-4" />}
+                Sign in with GitHub
+              </Button>
+
               <p className="text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link href="/auth/sign-up" className="text-primary hover:underline">
