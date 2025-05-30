@@ -16,7 +16,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchQuery] = useState("")
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const { toast } = useToast()
@@ -167,7 +167,7 @@ export default function ProjectsPage() {
             <Input
               placeholder="Search projects..."
               value={searchTerm}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
