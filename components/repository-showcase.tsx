@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Star, GitFork, ExternalLink, Github, Share } from "lucide-react"
+import { Star, GitFork, ExternalLink, Github, Share, Loader2 } from "lucide-react"
 import { getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
 import { firebaseGetUserRepositories } from "@/lib/firebase-service"
 import { useToast } from "@/hooks/use-toast"
@@ -33,39 +33,87 @@ interface RepositoryShowcaseProps {
 export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsername }: RepositoryShowcaseProps) {
   const [repositories, setRepositories] = useState<Repository[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
-    loadRepositories()
+    if (userId) {
+      loadRepositories()
+    }
   }, [userId])
 
   const loadRepositories = async () => {
+    setLoading(true)
+    setError(null)
+
     try {
+      console.log("🔄 Loading showcased repositories for user:", userId)
       const repos = await firebaseGetUserRepositories(userId)
-      setRepositories(repos)
-    } catch (error) {
-      console.error("Error loading repositories:", error)
+      console.log(`✅ Loaded ${repos.length} showcased repositories`)
+
+      // Ensure all repositories have the required fields
+      const validRepos = repos.map((repo: any) => ({
+        id: repo.id || 0,
+        name: repo.name || "Unknown Repository",
+        full_name: repo.full_name || repo.name || "Unknown Repository",
+        description: repo.description || null,
+        html_url: repo.html_url || `https://github.com/${githubUsername}`,
+        homepage: repo.homepage || null,
+        language: repo.language || null,
+        stargazers_count: repo.stargazers_count || 0,
+        forks_count: repo.forks_count || 0,
+        topics: Array.isArray(repo.topics) ? repo.topics : [],
+        updated_at: repo.updated_at || new Date().toISOString(),
+        created_at: repo.created_at || new Date().toISOString(),
+      }))
+
+      setRepositories(validRepos)
+    } catch (error: any) {
+      console.error("❌ Error loading showcased repositories:", error)
+      setError(error.message || "Failed to load repositories")
     } finally {
       setLoading(false)
     }
   }
 
   const handleShareRepositories = () => {
-    if (repositories.length === 0) return
+    if (!githubUsername || repositories.length === 0) return
 
     try {
-      shareRepositories(repositories, githubUsername || "")
+      shareRepositories(repositories, githubUsername)
       toast({
         title: "Repositories Shared!",
         description: "Repository list has been copied to clipboard or shared.",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Share Failed",
-        description: "Could not share repositories. Please try again.",
+        description: error.message || "Could not share repositories. Please try again.",
         variant: "destructive",
       })
     }
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Github className="h-5 w-5" />
+            Featured Repositories
+          </CardTitle>
+          <CardDescription>Error loading repositories</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={loadRepositories} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   if (loading) {
@@ -78,14 +126,8 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-full mb-1"></div>
-                <div className="h-3 bg-muted rounded w-2/3"></div>
-              </div>
-            ))}
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         </CardContent>
       </Card>
@@ -194,7 +236,7 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
                 <span>Updated {timeAgo(repo.updated_at)}</span>
               </div>
 
-              {repo.topics.length > 0 && (
+              {repo.topics && repo.topics.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {repo.topics.slice(0, 5).map((topic) => (
                     <Badge key={topic} variant="secondary" className="text-xs">
