@@ -46,5 +46,5 @@ try {
   throw error
 }
 
-export { auth, db }
+export { app, auth, db }
 export default app

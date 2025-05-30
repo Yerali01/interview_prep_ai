@@ -4,14 +4,8 @@ import {
   signIn as supabaseSignIn,
   signOut as supabaseSignOut,
   resetPassword as supabaseResetPassword,
-  getTopics as supabaseGetTopics,
-  getTopicBySlug as supabaseGetTopicBySlug,
   getDefinitions as supabaseGetDefinitions,
   getDefinitionByTerm as supabaseGetDefinitionByTerm,
-  getProjects as supabaseGetProjects,
-  getProjectBySlug as supabaseGetProjectBySlug,
-  getQuizzes as supabaseGetQuizzes,
-  getQuizBySlug as supabaseGetQuizBySlug,
   getQuizById as supabaseGetQuizById,
   saveQuizResult as supabaseSaveQuizResult,
   getUserQuizResults as supabaseGetUserQuizResults,
@@ -25,14 +19,8 @@ import {
   firebaseSignIn,
   firebaseSignOut,
   firebaseResetPassword,
-  firebaseGetTopics,
-  firebaseGetTopicBySlug,
   firebaseGetDefinitions,
   firebaseGetDefinitionByTerm,
-  firebaseGetProjects,
-  firebaseGetProjectBySlug,
-  firebaseGetQuizzes,
-  firebaseGetQuizBySlug,
   firebaseGetQuizById,
   firebaseSaveQuizResult,
   firebaseGetUserQuizResults,
@@ -40,9 +28,37 @@ import {
   firebaseGetUserTopicProgress,
 } from "./firebase-service"
 
+import {
+  firebaseGetTopics,
+  firebaseGetTopicBySlug,
+  firebaseGetQuizzes,
+  firebaseGetQuizBySlug,
+  firebaseGetQuestionsByQuizSlug,
+  firebaseGetProjects,
+  firebaseGetProjectBySlug,
+} from "./firebase-service-fixed"
+
+import {
+  supabaseGetTopics,
+  supabaseGetTopicBySlug,
+  supabaseGetQuizzes,
+  supabaseGetQuizBySlug,
+  supabaseGetQuestionsByQuizSlug,
+  supabaseGetProjects,
+  supabaseGetProjectBySlug,
+} from "./supabase-new"
+
 // Configuration for which database to use as primary
 const USE_FIREBASE_AS_PRIMARY = process.env.NEXT_PUBLIC_USE_FIREBASE_PRIMARY === "true"
 const ENABLE_DUAL_WRITE = process.env.NEXT_PUBLIC_ENABLE_DUAL_WRITE !== "false" // Default to true
+
+// Check if we should use Firebase as the primary data source
+const useFirebasePrimary = process.env.NEXT_PUBLIC_USE_FIREBASE_PRIMARY === "true"
+// Check if we should enable dual writes
+const enableDualWrite = process.env.NEXT_PUBLIC_ENABLE_DUAL_WRITE === "true"
+
+console.log(`🔄 Dual Database Service: Primary source is ${useFirebasePrimary ? "Firebase" : "Supabase"}`)
+console.log(`🔄 Dual Database Service: Dual write is ${enableDualWrite ? "enabled" : "disabled"}`)
 
 // Helper function to execute operations on both databases
 async function executeDualOperation<T>(
@@ -89,6 +105,28 @@ async function executeWithFallback<T>(
     } catch (fallbackError) {
       console.error(`❌ Both databases failed for ${operationName}:`, { primaryError, fallbackError })
       throw primaryError // Throw original error
+    }
+  }
+}
+
+// Generic function to get data from primary source with fallback
+async function getDataWithFallback<T>(
+  primaryFn: () => Promise<T>,
+  fallbackFn: () => Promise<T>,
+  entityName: string,
+): Promise<T> {
+  try {
+    console.log(`🔄 Fetching ${entityName} from primary source...`)
+    return await primaryFn()
+  } catch (primaryError) {
+    console.error(`❌ Error fetching ${entityName} from primary source:`, primaryError)
+    console.log(`🔄 Falling back to secondary source for ${entityName}...`)
+
+    try {
+      return await fallbackFn()
+    } catch (fallbackError) {
+      console.error(`❌ Error fetching ${entityName} from fallback source:`, fallbackError)
+      throw new Error(`Failed to fetch ${entityName} from both sources`)
     }
   }
 }
@@ -383,4 +421,67 @@ export const switchPrimaryDatabase = () => {
     `Switching primary database from ${USE_FIREBASE_AS_PRIMARY ? "Firebase" : "Supabase"} to ${USE_FIREBASE_AS_PRIMARY ? "Supabase" : "Firebase"}`,
   )
   // This would require updating environment variables and restarting the app
+}
+
+// Get all topics
+export async function getTopics() {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetTopics() : supabaseGetTopics()),
+    () => (useFirebasePrimary ? supabaseGetTopics() : firebaseGetTopics()),
+    "topics",
+  )
+}
+
+// Get topic by slug
+export async function getTopicBySlug(slug: string) {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetTopicBySlug(slug) : supabaseGetTopicBySlug(slug)),
+    () => (useFirebasePrimary ? supabaseGetTopicBySlug(slug) : firebaseGetTopicBySlug(slug)),
+    `topic with slug "${slug}"`,
+  )
+}
+
+// Get all quizzes
+export async function getQuizzes() {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetQuizzes() : supabaseGetQuizzes()),
+    () => (useFirebasePrimary ? supabaseGetQuizzes() : firebaseGetQuizzes()),
+    "quizzes",
+  )
+}
+
+// Get quiz by slug
+export async function getQuizBySlug(slug: string) {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetQuizBySlug(slug) : supabaseGetQuizBySlug(slug)),
+    () => (useFirebasePrimary ? supabaseGetQuizBySlug(slug) : firebaseGetQuizBySlug(slug)),
+    `quiz with slug "${slug}"`,
+  )
+}
+
+// Get questions by quiz slug
+export async function getQuestionsByQuizSlug(quizSlug: string) {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetQuestionsByQuizSlug(quizSlug) : supabaseGetQuestionsByQuizSlug(quizSlug)),
+    () => (useFirebasePrimary ? supabaseGetQuestionsByQuizSlug(quizSlug) : firebaseGetQuestionsByQuizSlug(quizSlug)),
+    `questions for quiz "${quizSlug}"`,
+  )
+}
+
+// Get all projects
+export async function getProjects() {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetProjects() : supabaseGetProjects()),
+    () => (useFirebasePrimary ? supabaseGetProjects() : firebaseGetProjects()),
+    "projects",
+  )
+}
+
+// Get project by slug
+export async function getProjectBySlug(slug: string) {
+  return getDataWithFallback(
+    () => (useFirebasePrimary ? firebaseGetProjectBySlug(slug) : supabaseGetProjectBySlug(slug)),
+    () => (useFirebasePrimary ? supabaseGetProjectBySlug(slug) : firebaseGetProjectBySlug(slug)),
+    `project with slug "${slug}"`,
+  )
 }

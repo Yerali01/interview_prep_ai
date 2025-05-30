@@ -12,48 +12,27 @@ import { Clock, Search, BookOpen, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTopics } from "@/contexts/topics-context"
 import { formatDistanceToNow } from "date-fns"
-import { firebaseGetTopics, type Topic } from "@/lib/firebase-service-fixed"
 
 export default function TopicsPage() {
-  const [topics, setTopics] = useState<Topic[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { topics, loading, error, refreshTopics, lastFetched } = useTopics()
+  const [filteredTopics, setFilteredTopics] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [refreshing, setRefreshing] = useState(false)
-  const [lastFetched, setLastFetched] = useState<Date | null>(null)
-
-  const fetchTopics = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      console.log("🔥 Fetching topics from Firebase...")
-
-      const topicsData = await firebaseGetTopics()
-      console.log("🔥 Firebase topics received:", topicsData?.length || 0)
-
-      setTopics(topicsData || [])
-      setLastFetched(new Date())
-    } catch (err) {
-      setError("Failed to load topics from Firebase")
-      console.error("❌ Error fetching topics from Firebase:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
-    fetchTopics()
-  }, [])
-
-  const filteredTopics = topics.filter((topic) => {
-    const matchesSearch =
-      topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      topic.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab = activeTab === "all" || topic.level === activeTab
-    return matchesSearch && matchesTab
-  })
+    // Filter topics based on search query and active tab
+    const filtered = topics.filter((topic) => {
+      const matchesSearch =
+        topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        topic.description.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesTab = activeTab === "all" || topic.level === activeTab
+      return matchesSearch && matchesTab
+    })
+    setFilteredTopics(filtered)
+  }, [searchQuery, activeTab, topics])
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
@@ -65,7 +44,7 @@ export default function TopicsPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchTopics()
+    await refreshTopics()
     setRefreshing(false)
   }
 
@@ -115,7 +94,7 @@ export default function TopicsPage() {
             </Button>
             {lastFetched && (
               <span className="ml-2 text-xs text-muted-foreground">
-                Updated {formatDistanceToNow(lastFetched, { addSuffix: true })}
+                Updated {formatDistanceToNow(new Date(lastFetched), { addSuffix: true })}
               </span>
             )}
           </div>
