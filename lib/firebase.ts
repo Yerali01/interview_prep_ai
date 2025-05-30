@@ -1,8 +1,7 @@
-import { initializeApp, getApps } from "firebase/app"
-import { getAuth } from "firebase/auth"
-import { getFirestore } from "firebase/firestore"
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app"
+import { getAuth, type Auth } from "firebase/auth"
+import { getFirestore, type Firestore } from "firebase/firestore"
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,13 +12,39 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
-// Initialize Firebase only if it hasn't been initialized yet
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+// Validate Firebase config
+const requiredKeys = ["apiKey", "authDomain", "projectId", "storageBucket", "messagingSenderId", "appId"]
+const missingKeys = requiredKeys.filter((key) => !firebaseConfig[key as keyof typeof firebaseConfig])
 
-// Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app)
+if (missingKeys.length > 0) {
+  console.error("Missing Firebase configuration keys:", missingKeys)
+  throw new Error(`Missing Firebase configuration: ${missingKeys.join(", ")}`)
+}
 
-// Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app)
+// Initialize Firebase app
+let app: FirebaseApp
+let auth: Auth
+let db: Firestore
 
+try {
+  // Check if Firebase is already initialized
+  if (getApps().length === 0) {
+    console.log("🔥 Initializing Firebase...")
+    app = initializeApp(firebaseConfig)
+  } else {
+    console.log("🔥 Firebase already initialized, using existing app")
+    app = getApps()[0]
+  }
+
+  // Initialize services
+  auth = getAuth(app)
+  db = getFirestore(app)
+
+  console.log("✅ Firebase initialized successfully")
+} catch (error) {
+  console.error("❌ Firebase initialization failed:", error)
+  throw error
+}
+
+export { auth, db }
 export default app
