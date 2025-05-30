@@ -1,326 +1,286 @@
-"use client";
+"use client"
 
-import type React from "react";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, RefreshCw, BookOpen } from "lucide-react";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getQuizzes, type Quiz } from "@/lib/supabase";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
+import {
+  createQuiz as createQuizAction,
+  deleteQuiz as deleteQuizAction,
+  updateQuiz as updateQuizAction,
+} from "@/lib/actions"
+import { useTransition } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { formatDistanceToNow } from "date-fns"
+import { firebaseGetQuizzes, type Quiz } from "@/lib/firebase-service-fixed"
 
-// Force dynamic rendering to prevent prerender errors
-export const dynamic = "force-dynamic";
+interface QuizRowProps {
+  quiz: Quiz
+  refreshQuizzes: () => void
+}
 
-export default function QuizPage() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filteredQuizzes, setFilteredQuizzes] = useState<Quiz[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
-  const [refreshing, setRefreshing] = useState(false);
+function QuizRow({ quiz, refreshQuizzes }: QuizRowProps) {
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState(quiz.title)
+  const [description, setDescription] = useState(quiz.description)
+  const [isPending, startTransition] = useTransition()
 
-  const fetchQuizzes = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const quizzesData = await getQuizzes();
+  const updateQuiz = async () => {
+    startTransition(async () => {
+      const result = await updateQuizAction({
+        id: quiz.id,
+        title,
+        description,
+      })
 
-      // Sort quizzes by level: junior -> middle -> senior
-      const levelOrder = { junior: 1, middle: 2, senior: 3 };
-      const sortedQuizzes = [...quizzesData].sort(
-        (a, b) =>
-          levelOrder[a.level as keyof typeof levelOrder] -
-          levelOrder[b.level as keyof typeof levelOrder]
-      );
+      if (result?.error) {
+        toast({
+          title: "Error updating quiz",
+          description: result.error,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Quiz updated",
+          description: "Quiz updated successfully",
+        })
+        setOpen(false)
+        refreshQuizzes()
+      }
+    })
+  }
 
-      setQuizzes(sortedQuizzes);
-    } catch (err) {
-      console.error("Error fetching quizzes:", err);
-      setError("Failed to load quizzes");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteQuiz = async () => {
+    startTransition(async () => {
+      const result = await deleteQuizAction(quiz.id)
 
-  useEffect(() => {
-    fetchQuizzes();
-  }, []);
-
-  useEffect(() => {
-    // Filter quizzes based on search query and active tab
-    const filtered = quizzes.filter((quiz) => {
-      const matchesSearch =
-        quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        quiz.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesTab = activeTab === "all" || quiz.level === activeTab;
-      return matchesSearch && matchesTab;
-    });
-    setFilteredQuizzes(filtered);
-  }, [searchQuery, activeTab, quizzes]);
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchQuizzes();
-    setRefreshing(false);
-  };
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case "junior":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-      case "middle":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-      case "senior":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Flutter Quizzes</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Test your Flutter knowledge with our interactive quizzes
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <Skeleton className="h-6 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-5/6" />
-              </CardContent>
-              <CardFooter>
-                <Skeleton className="h-10 w-full" />
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
+      if (result?.error) {
+        toast({
+          title: "Error deleting quiz",
+          description: result.error,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Quiz deleted",
+          description: "Quiz deleted successfully",
+        })
+        refreshQuizzes()
+      }
+    })
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center mb-12"
-      >
-        <h1 className="text-4xl font-bold mb-4">Flutter Quizzes</h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Test your Flutter knowledge with our interactive quizzes
-        </p>
-      </motion.div>
+    <TableRow key={quiz.id}>
+      <TableCell className="font-medium">{quiz.title}</TableCell>
+      <TableCell>{quiz.description}</TableCell>
+      <TableCell>{formatDistanceToNow(new Date(quiz.createdAt), { addSuffix: true })}</TableCell>
+      <TableCell className="flex items-center space-x-2">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              Edit
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit quiz</DialogTitle>
+              <DialogDescription>Make changes to your quiz here. Click save when you're done.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  defaultValue={quiz.title}
+                  className="col-span-3"
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">
+                  Description
+                </Label>
+                <Input
+                  id="description"
+                  defaultValue={quiz.description}
+                  className="col-span-3"
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button onClick={updateQuiz} disabled={isPending}>
+              Save changes
+            </Button>
+          </DialogContent>
+        </Dialog>
+        <Button variant="destructive" size="sm" onClick={deleteQuiz} disabled={isPending}>
+          Delete
+        </Button>
+      </TableCell>
+    </TableRow>
+  )
+}
 
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+function CreateQuizDialog({ refreshQuizzes }: { refreshQuizzes: () => void }) {
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [isPending, startTransition] = useTransition()
+
+  const createQuiz = async () => {
+    startTransition(async () => {
+      const result = await createQuizAction({ title, description })
+
+      if (result?.error) {
+        toast({
+          title: "Error creating quiz",
+          description: result.error,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Quiz created",
+          description: "Quiz created successfully",
+        })
+        setOpen(false)
+        setTitle("")
+        setDescription("")
+        refreshQuizzes()
+      }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>Create Quiz</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Create quiz</DialogTitle>
+          <DialogDescription>Create a new quiz here. Click save when you're done.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="title" className="text-right">
+              Title
+            </Label>
+            <Input id="title" value={title} className="col-span-3" onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="description" className="text-right">
+              Description
+            </Label>
             <Input
-              placeholder="Search quizzes..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={handleSearch}
+              id="description"
+              value={description}
+              className="col-span-3"
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <div className="ml-4 flex items-center">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing || loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-          </div>
         </div>
+        <Button onClick={createQuiz} disabled={isPending}>
+          Create
+        </Button>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
-        <Tabs
-          defaultValue="all"
-          value={activeTab}
-          onValueChange={handleTabChange}
-        >
-          <TabsList className="grid grid-cols-4 mb-8">
-            <TabsTrigger value="all">All Levels</TabsTrigger>
-            <TabsTrigger value="junior">Junior</TabsTrigger>
-            <TabsTrigger value="middle">Middle</TabsTrigger>
-            <TabsTrigger value="senior">Senior</TabsTrigger>
-          </TabsList>
+function useQuizzes() {
+  const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastFetched, setLastFetched] = useState<Date | null>(null)
 
-          <TabsContent value={activeTab} className="mt-0">
-            {error ? (
-              <div className="text-center py-12">
-                <h3 className="text-xl font-medium mb-2">
-                  Error loading quizzes
-                </h3>
-                <p className="text-muted-foreground mb-6">{error}</p>
-                <Button variant="outline" onClick={handleRefresh}>
-                  Try Again
-                </Button>
-              </div>
-            ) : filteredQuizzes.length > 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                {filteredQuizzes.map((quiz, index) => (
-                  <motion.div
-                    key={quiz.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-xl">
-                            {quiz.title}
-                          </CardTitle>
-                          <Badge className={getLevelColor(quiz.level)}>
-                            {quiz.level.charAt(0).toUpperCase() +
-                              quiz.level.slice(1)}
-                          </Badge>
-                        </div>
-                        <CardDescription className="font-mono text-sm bg-muted/50 p-3 rounded-md mt-2">
-                          <pre className="whitespace-pre-wrap">
-                            {quiz.description.split(" ").map((word, i) => {
-                              // Keywords that should be highlighted
-                              const keywords = [
-                                "class",
-                                "function",
-                                "method",
-                                "property",
-                                "variable",
-                                "const",
-                                "let",
-                                "var",
-                                "return",
-                                "if",
-                                "else",
-                                "for",
-                                "while",
-                                "try",
-                                "catch",
-                                "async",
-                                "await",
-                                "import",
-                                "export",
-                                "from",
-                                "type",
-                                "interface",
-                              ];
-                              const types = [
-                                "string",
-                                "number",
-                                "boolean",
-                                "array",
-                                "object",
-                                "void",
-                                "null",
-                                "undefined",
-                                "any",
-                              ];
+  const refreshQuizzes = async () => {
+    setLoading(true)
+    try {
+      const data = await firebaseGetQuizzes()
+      setQuizzes(data)
+      setError(null)
+      setLastFetched(new Date())
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-                              // Check if word is a keyword or type
-                              const isKeyword = keywords.includes(
-                                word.toLowerCase()
-                              );
-                              const isType = types.includes(word.toLowerCase());
+  useEffect(() => {
+    refreshQuizzes()
+  }, [])
 
-                              return (
-                                <span
-                                  key={i}
-                                  className={`${
-                                    isKeyword
-                                      ? "text-blue-500 dark:text-blue-400"
-                                      : isType
-                                      ? "text-purple-500 dark:text-purple-400"
-                                      : "text-foreground"
-                                  }`}
-                                >
-                                  {word}{" "}
-                                </span>
-                              );
-                            })}
-                          </pre>
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <div className="text-sm text-muted-foreground">
-                          {quiz.questions && quiz.questions.length > 0 && (
-                            <p>{quiz.questions.length} questions</p>
-                          )}
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <Button asChild className="w-full">
-                          <Link href={`/quiz/${String(quiz.slug)}`}>
-                            <BookOpen className="mr-2 h-4 w-4" /> Start Quiz
-                          </Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
-                ))}
-              </motion.div>
-            ) : (
-              <div className="text-center py-12">
-                <h3 className="text-xl font-medium mb-2">No quizzes found</h3>
-                <p className="text-muted-foreground mb-6">
-                  Try adjusting your search or filter to find what you're
-                  looking for.
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setActiveTab("all");
-                  }}
-                >
-                  Clear filters
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+  return { quizzes, loading, error, refreshQuizzes, lastFetched }
+}
+
+export default function QuizzesPage() {
+  const { quizzes, loading, error, refreshQuizzes, lastFetched } = useQuizzes()
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Quizzes</h1>
+        <CreateQuizDialog refreshQuizzes={refreshQuizzes} />
+      </div>
+      {lastFetched && (
+        <p className="text-sm text-muted-foreground">
+          Last updated {formatDistanceToNow(lastFetched, { addSuffix: true })}
+        </p>
+      )}
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          <p>Something went wrong. Please refresh the page or try again later.</p>
+        </div>
+      )}
+      <div className="rounded-md border">
+        <Table>
+          <TableCaption>A list of your quizzes.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Created At</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading &&
+              [...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">
+                    <Skeleton />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton />
+                  </TableCell>
+                </TableRow>
+              ))}
+            {!loading && quizzes.map((quiz) => <QuizRow key={quiz.id} quiz={quiz} refreshQuizzes={refreshQuizzes} />)}
+          </TableBody>
+        </Table>
       </div>
     </div>
-  );
+  )
 }

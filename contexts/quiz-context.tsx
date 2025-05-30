@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { firebaseGetQuizzes, type Quiz } from "@/lib/firebase-service"
+import { firebaseGetQuizzes, type Quiz } from "@/lib/firebase-service-fixed"
 
 interface QuizContextType {
   quizzes: Quiz[]

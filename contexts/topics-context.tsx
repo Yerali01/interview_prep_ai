@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { firebaseGetTopics, type Topic } from "@/lib/firebase-service"
+import { firebaseGetTopics, type Topic } from "@/lib/firebase-service-fixed"
 
 interface TopicsContextType {
   topics: Topic[]

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { firebaseGetQuizBySlug, firebaseSaveQuizResult, type QuizQuestion } from "@/lib/firebase-service"
+import { firebaseGetQuizBySlug, firebaseSaveQuizResult, type QuizQuestion } from "@/lib/firebase-service-fixed"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -199,9 +199,7 @@ export default function QuizPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">{quiz.title}</h1>
-          <p className="text-xl text-muted-foreground">
-            {quiz.description}
-          </p>
+          <p className="text-xl text-muted-foreground">{quiz.description}</p>
         </div>
 
         {!quizCompleted ? (
