@@ -21,8 +21,43 @@ import {
   Copy,
 } from "lucide-react"
 import { firebaseGetProjectBySlug } from "@/lib/firebase-service-fixed"
-import type { Project, Technology } from "@/lib/firebase-service"
 import { useToast } from "@/components/ui/use-toast"
+
+// Define interfaces for better type safety
+interface Technology {
+  technology_name?: string
+  package_name?: string
+  category?: string
+  is_required?: boolean
+  purpose?: string
+  explanation?: string
+  installation_command?: string
+  version_requirement?: string
+  documentation_url?: string
+}
+
+interface Feature {
+  feature_name?: string
+  description?: string
+  priority?: string
+}
+
+interface Project {
+  id?: string
+  name?: string
+  slug?: string
+  description?: string
+  difficulty_level?: string
+  estimated_duration?: string
+  category?: string
+  github_url?: string
+  demo_url?: string
+  image_url?: string
+  is_pet_project?: boolean
+  real_world_example?: string
+  technologies?: Technology[] | any
+  features?: Feature[] | any
+}
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -38,6 +73,7 @@ export default function ProjectDetailPage() {
 
       try {
         setLoading(true)
+        setError(null)
         console.log("🔥 Fetching project from Firebase with slug:", params.slug)
 
         const projectData = await firebaseGetProjectBySlug(params.slug as string)
@@ -50,8 +86,8 @@ export default function ProjectDetailPage() {
 
         setProject(projectData)
       } catch (err) {
-        setError("Failed to load project from Firebase")
         console.error("❌ Error fetching project from Firebase:", err)
+        setError("Failed to load project from Firebase")
       } finally {
         setLoading(false)
       }
@@ -60,8 +96,51 @@ export default function ProjectDetailPage() {
     fetchProject()
   }, [params.slug])
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
+  // Safe data extraction with fallbacks
+  const safeGetTechnologies = (project: Project): Technology[] => {
+    try {
+      if (!project?.technologies) return []
+
+      if (Array.isArray(project.technologies)) {
+        return project.technologies.filter((tech) => tech && typeof tech === "object")
+      }
+
+      // If it's an object, try to extract values
+      if (typeof project.technologies === "object") {
+        const values = Object.values(project.technologies)
+        return values.filter((tech) => tech && typeof tech === "object") as Technology[]
+      }
+
+      return []
+    } catch (err) {
+      console.error("Error processing technologies:", err)
+      return []
+    }
+  }
+
+  const safeGetFeatures = (project: Project): Feature[] => {
+    try {
+      if (!project?.features) return []
+
+      if (Array.isArray(project.features)) {
+        return project.features.filter((feature) => feature && typeof feature === "object")
+      }
+
+      // If it's an object, try to extract values
+      if (typeof project.features === "object") {
+        const values = Object.values(project.features)
+        return values.filter((feature) => feature && typeof feature === "object") as Feature[]
+      }
+
+      return []
+    } catch (err) {
+      console.error("Error processing features:", err)
+      return []
+    }
+  }
+
+  const getDifficultyColor = (difficulty?: string) => {
+    switch (difficulty?.toLowerCase()) {
       case "beginner":
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
       case "intermediate":
@@ -73,8 +152,8 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority.toLowerCase()) {
+  const getPriorityColor = (priority?: string) => {
+    switch (priority?.toLowerCase()) {
       case "high":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
       case "medium":
@@ -87,16 +166,22 @@ export default function ProjectDetailPage() {
   }
 
   const groupTechnologiesByCategory = (technologies: Technology[]) => {
-    return technologies.reduce(
-      (acc, tech) => {
-        if (!acc[tech.category]) {
-          acc[tech.category] = []
-        }
-        acc[tech.category].push(tech)
-        return acc
-      },
-      {} as Record<string, Technology[]>,
-    )
+    try {
+      return technologies.reduce(
+        (acc, tech) => {
+          const category = tech?.category || "Other"
+          if (!acc[category]) {
+            acc[category] = []
+          }
+          acc[category].push(tech)
+          return acc
+        },
+        {} as Record<string, Technology[]>,
+      )
+    } catch (err) {
+      console.error("Error grouping technologies:", err)
+      return {}
+    }
   }
 
   const copyToClipboard = async (text: string, successMessage: string) => {
@@ -140,7 +225,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">{error || "Project not found in Firebase"}</h1>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">{error || "Project not found"}</h1>
           <Button onClick={() => router.push("/projects")} className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Projects
@@ -150,12 +235,14 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const technologies = Array.isArray(project.technologies) ? project.technologies : []
-  const features = Array.isArray(project.features) ? project.features : []
+  // Safely extract data
+  const technologies = safeGetTechnologies(project)
+  const features = safeGetFeatures(project)
   const groupedTechnologies = groupTechnologiesByCategory(technologies)
 
-  console.log("Technologies:", technologies) // Debug log
-  console.log("Grouped technologies:", groupedTechnologies) // Debug log
+  console.log("Safe technologies:", technologies)
+  console.log("Safe features:", features)
+  console.log("Grouped technologies:", groupedTechnologies)
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -173,7 +260,7 @@ export default function ProjectDetailPage() {
             <div className="flex items-start justify-between">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+                  <h1 className="text-3xl font-bold tracking-tight">{project.name || "Untitled Project"}</h1>
                   {project.is_pet_project && (
                     <Badge variant="secondary">
                       <Star className="h-3 w-3 mr-1" />
@@ -182,17 +269,23 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={getDifficultyColor(project.difficulty_level)}>{project.difficulty_level}</Badge>
-                  <Badge variant="outline">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {project.estimated_duration}
-                  </Badge>
-                  <Badge variant="outline">{project.category}</Badge>
+                  {project.difficulty_level && (
+                    <Badge className={getDifficultyColor(project.difficulty_level)}>{project.difficulty_level}</Badge>
+                  )}
+                  {project.estimated_duration && (
+                    <Badge variant="outline">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {project.estimated_duration}
+                    </Badge>
+                  )}
+                  {project.category && <Badge variant="outline">{project.category}</Badge>}
                 </div>
               </div>
             </div>
 
-            <p className="text-lg text-muted-foreground leading-relaxed">{project.description}</p>
+            {project.description && (
+              <p className="text-lg text-muted-foreground leading-relaxed">{project.description}</p>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-3">
@@ -247,12 +340,14 @@ export default function ProjectDetailPage() {
                       <Circle className="h-5 w-5 mt-0.5 text-muted-foreground" />
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{feature.feature_name}</h4>
-                          <Badge variant="outline" className={getPriorityColor(feature.priority)}>
-                            {feature.priority}
-                          </Badge>
+                          <h4 className="font-medium">{feature.feature_name || "Unnamed Feature"}</h4>
+                          {feature.priority && (
+                            <Badge variant="outline" className={getPriorityColor(feature.priority)}>
+                              {feature.priority}
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{feature.description}</p>
+                        {feature.description && <p className="text-sm text-muted-foreground">{feature.description}</p>}
                       </div>
                     </div>
                   ))}
@@ -262,16 +357,16 @@ export default function ProjectDetailPage() {
           )}
 
           {/* Technologies & Packages */}
-          {technologies.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Technologies & Packages
-                </CardTitle>
-                <CardDescription>Flutter packages and concepts you'll use in this project</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Technologies & Packages
+              </CardTitle>
+              <CardDescription>Flutter packages and concepts you'll use in this project</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {technologies.length > 0 ? (
                 <div className="space-y-6">
                   {Object.keys(groupedTechnologies).length > 0 ? (
                     Object.entries(groupedTechnologies).map(([category, techs]) => (
@@ -290,7 +385,7 @@ export default function ProjectDetailPage() {
                                     ) : (
                                       <Circle className="h-4 w-4 text-muted-foreground" />
                                     )}
-                                    <h5 className="font-semibold">{tech.technology_name}</h5>
+                                    <h5 className="font-semibold">{tech.technology_name || "Unnamed Technology"}</h5>
                                     {tech.is_required && (
                                       <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
                                         Required
@@ -372,25 +467,15 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Technologies & Packages
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+              ) : (
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                   <p className="text-muted-foreground">No technologies data available for this project.</p>
                   <p className="text-sm text-muted-foreground mt-2">Technologies will be added soon.</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
@@ -401,18 +486,24 @@ export default function ProjectDetailPage() {
               <CardTitle className="text-lg">Project Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Difficulty</span>
-                <Badge className={getDifficultyColor(project.difficulty_level)}>{project.difficulty_level}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Duration</span>
-                <span className="text-sm font-medium">{project.estimated_duration}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Category</span>
-                <span className="text-sm font-medium">{project.category}</span>
-              </div>
+              {project.difficulty_level && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Difficulty</span>
+                  <Badge className={getDifficultyColor(project.difficulty_level)}>{project.difficulty_level}</Badge>
+                </div>
+              )}
+              {project.estimated_duration && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Duration</span>
+                  <span className="text-sm font-medium">{project.estimated_duration}</span>
+                </div>
+              )}
+              {project.category && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Category</span>
+                  <span className="text-sm font-medium">{project.category}</span>
+                </div>
+              )}
               {technologies.length > 0 && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Technologies</span>
@@ -425,9 +516,6 @@ export default function ProjectDetailPage() {
                   <span className="text-sm font-medium">{features.length}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Source</span>
-              </div>
             </CardContent>
           </Card>
 
