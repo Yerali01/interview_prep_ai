@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Star, GitFork, ExternalLink, RefreshCw, Share, AlertCircle } from "lucide-react"
+import { Loader2, Star, GitFork, ExternalLink, RefreshCw, Share, AlertCircle, TestTube } from "lucide-react"
 import { GitHubAPI, type GitHubRepository, getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
-import { saveUserRepositories, getUserRepositories, initializeUserRepositories } from "@/lib/repository-service"
+import { saveUserRepositories, getUserRepositories, testRepositoryOperations } from "@/lib/repository-service-v2"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -22,15 +22,13 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
   const [selectedRepos, setSelectedRepos] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
     if (userId && githubUsername) {
-      // Initialize repository structure for new users
-      initializeUserRepositories(userId).catch(console.error)
-
       loadRepositories()
       loadSavedRepositories()
     }
@@ -56,7 +54,7 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
 
       console.log(`✅ Fetched ${repos.length} repositories`)
 
-      // Filter out forks and archived repos by default, but allow user to see them
+      // Filter out forks and archived repos by default
       const filteredRepos = repos.filter((repo) => !repo.archived && !repo.disabled)
       setRepositories(filteredRepos)
     } catch (error: any) {
@@ -69,15 +67,15 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
 
   const loadSavedRepositories = async () => {
     try {
-      console.log("🔄 Loading saved repositories for user:", userId)
-      const savedRepos = await getUserRepositories(userId)
+      console.log("🔄 Loading saved repositories...")
+      const savedRepos = await getUserRepositories()
       console.log(`✅ Loaded ${savedRepos.length} saved repositories`)
 
       const savedRepoIds = new Set(savedRepos.map((repo: any) => repo.id))
       setSelectedRepos(savedRepoIds)
     } catch (error: any) {
       console.error("❌ Error loading saved repositories:", error)
-      // Don't show a toast here, just log the error
+      // Don't show error for loading saved repos, just log it
     }
   }
 
@@ -96,25 +94,10 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
     setSaveError(null)
 
     try {
-      console.log("💾 Saving repository selection")
-      const selectedRepositories = repositories
-        .filter((repo) => selectedRepos.has(repo.id))
-        .map((repo) => ({
-          id: repo.id,
-          name: repo.name,
-          full_name: repo.full_name,
-          description: repo.description,
-          html_url: repo.html_url,
-          homepage: repo.homepage,
-          language: repo.language,
-          stargazers_count: repo.stargazers_count,
-          forks_count: repo.forks_count,
-          topics: repo.topics || [],
-          updated_at: repo.updated_at,
-          created_at: repo.created_at,
-        }))
+      console.log("💾 Saving repository selection...")
+      const selectedRepositories = repositories.filter((repo) => selectedRepos.has(repo.id))
 
-      await saveUserRepositories(userId, selectedRepositories)
+      await saveUserRepositories(selectedRepositories)
       console.log(`✅ Saved ${selectedRepositories.length} repositories`)
 
       toast({
@@ -131,6 +114,37 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTestFirebase = async () => {
+    setTesting(true)
+    try {
+      console.log("🧪 Testing Firebase operations...")
+      const testResults = await testRepositoryOperations()
+
+      if (testResults.error) {
+        toast({
+          title: "Firebase Test Failed",
+          description: testResults.error,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Firebase Test Successful",
+          description: "All repository operations are working correctly.",
+        })
+      }
+
+      console.log("🧪 Test results:", testResults)
+    } catch (error: any) {
+      toast({
+        title: "Firebase Test Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -209,6 +223,10 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Button onClick={handleTestFirebase} variant="outline" size="sm" disabled={testing}>
+              {testing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <TestTube className="h-4 w-4 mr-2" />}
+              Test Firebase
+            </Button>
             {selectedRepos.size > 0 && (
               <Button onClick={handleShareSelected} variant="outline" size="sm">
                 <Share className="h-4 w-4 mr-2" />
@@ -230,7 +248,7 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
         {saveError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>Save Error</AlertTitle>
             <AlertDescription>{saveError}</AlertDescription>
           </Alert>
         )}

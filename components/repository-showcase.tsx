@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Star, GitFork, ExternalLink, Github, Share, Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
-import { getUserRepositories } from "@/lib/repository-service"
+import { getUserRepositories } from "@/lib/repository-service-v2"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -48,8 +48,8 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
     setError(null)
 
     try {
-      console.log("🔄 Loading showcased repositories for user:", userId)
-      const repos = await getUserRepositories(userId)
+      console.log("🔄 Loading showcased repositories...")
+      const repos = await getUserRepositories()
       console.log(`✅ Loaded ${repos.length} showcased repositories`)
 
       // Ensure all repositories have the required fields
