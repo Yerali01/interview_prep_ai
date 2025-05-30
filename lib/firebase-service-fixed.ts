@@ -22,6 +22,8 @@ export interface Quiz {
   level: string
   createdAt?: string
   updatedAt?: string
+  questions?: Question[]
+  questionsCount?: number
 }
 
 export interface Question {
@@ -132,7 +134,7 @@ export async function firebaseGetQuizzes(): Promise<Quiz[]> {
   }
 }
 
-// Get quiz by slug
+// Get quiz by slug with questions
 export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> {
   try {
     console.log(`🔥 Fetching quiz with slug "${slug}" from Firebase...`)
@@ -148,7 +150,18 @@ export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> 
     const doc = querySnapshot.docs[0]
     const quiz = { ...doc.data(), id: doc.id } as Quiz
 
-    console.log(`✅ Successfully fetched quiz "${quiz.title}"`)
+    // Fetch questions for this quiz
+    try {
+      const questions = await firebaseGetQuestionsByQuizSlug(slug)
+      quiz.questions = questions
+      quiz.questionsCount = questions.length
+    } catch (error) {
+      console.error(`❌ Error fetching questions for quiz "${slug}":`, error)
+      quiz.questions = []
+      quiz.questionsCount = 0
+    }
+
+    console.log(`✅ Successfully fetched quiz "${quiz.title}" with ${quiz.questionsCount} questions`)
     return quiz
   } catch (error) {
     console.error(`❌ Error fetching quiz with slug "${slug}":`, error)
