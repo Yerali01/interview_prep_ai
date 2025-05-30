@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Star, GitFork, ExternalLink, Github, Share, Loader2 } from "lucide-react"
 import { getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
-import { firebaseGetUserRepositories } from "@/lib/firebase-service"
+import { getUserRepositories } from "@/lib/repository-service"
 import { useToast } from "@/hooks/use-toast"
 
 interface Repository {
@@ -48,7 +48,7 @@ export function RepositoryShowcase({ userId, isOwnProfile = false, githubUsernam
 
     try {
       console.log("🔄 Loading showcased repositories for user:", userId)
-      const repos = await firebaseGetUserRepositories(userId)
+      const repos = await getUserRepositories(userId)
       console.log(`✅ Loaded ${repos.length} showcased repositories`)
 
       // Ensure all repositories have the required fields

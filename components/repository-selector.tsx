@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Star, GitFork, ExternalLink, RefreshCw, Share } from "lucide-react"
 import { GitHubAPI, type GitHubRepository, getLanguageColor, timeAgo, shareRepositories } from "@/lib/github-api"
-import { firebaseSaveUserRepositories, firebaseGetUserRepositories } from "@/lib/firebase-service"
+import { saveUserRepositories, getUserRepositories } from "@/lib/repository-service"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -65,7 +65,7 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
   const loadSavedRepositories = async () => {
     try {
       console.log("🔄 Loading saved repositories for user:", userId)
-      const savedRepos = await firebaseGetUserRepositories(userId)
+      const savedRepos = await getUserRepositories(userId)
       console.log(`✅ Loaded ${savedRepos.length} saved repositories`)
 
       const savedRepoIds = new Set(savedRepos.map((repo: any) => repo.id))
@@ -111,7 +111,7 @@ export function RepositorySelector({ userId, githubUsername }: RepositorySelecto
           created_at: repo.created_at,
         }))
 
-      await firebaseSaveUserRepositories(userId, selectedRepositories)
+      await saveUserRepositories(userId, selectedRepositories)
       console.log(`✅ Saved ${selectedRepositories.length} repositories`)
 
       toast({
