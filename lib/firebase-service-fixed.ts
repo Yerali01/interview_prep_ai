@@ -1,15 +1,4 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  query,
-  where,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-} from "firebase/firestore"
+import { collection, doc, getDocs, query, where, addDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import { db } from "./firebase"
 
 // Type definitions
@@ -33,11 +22,11 @@ export interface Quiz {
   level: string
   createdAt?: string
   updatedAt?: string
-  questions?: Question[]
+  questions?: QuizQuestion[]
   questionsCount?: number
 }
 
-export interface Question {
+export interface QuizQuestion {
   id: string
   quiz_id: string
   quiz_slug: string
@@ -63,18 +52,6 @@ export interface Project {
   real_world_example?: string
   createdAt?: string
   updatedAt?: string
-}
-
-// Add QuizQuestion interface
-export interface QuizQuestion {
-  id: string
-  quiz_id: string
-  quiz_slug: string
-  question: string
-  options: Record<string, string>
-  correct_answer: string
-  explanation: string
-  category: string
 }
 
 // Get all topics
@@ -157,7 +134,7 @@ export async function firebaseGetQuizzes(): Promise<Quiz[]> {
   }
 }
 
-// Get quiz by slug with questions
+// Get quiz by slug with questions - FIXED VERSION
 export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> {
   try {
     console.log(`🔥 Fetching quiz with slug "${slug}" from Firebase...`)
@@ -173,18 +150,39 @@ export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> 
     const doc = querySnapshot.docs[0]
     const quiz = { ...doc.data(), id: doc.id } as Quiz
 
-    // Fetch questions for this quiz
+    // Fetch questions for this quiz using quiz_id instead of quiz_slug
     try {
-      const questions = await firebaseGetQuestionsByQuizSlug(slug)
+      console.log(`🔍 Fetching questions for quiz ID: ${quiz.id}`)
+      const questionsCollection = collection(db, "questions")
+
+      // Try both quiz_id and quiz_slug to be safe
+      let questionsQuery = query(questionsCollection, where("quiz_id", "==", quiz.id))
+      let questionsSnapshot = await getDocs(questionsQuery)
+
+      if (questionsSnapshot.empty) {
+        console.log(`⚠️ No questions found with quiz_id, trying quiz_slug...`)
+        questionsQuery = query(questionsCollection, where("quiz_slug", "==", slug))
+        questionsSnapshot = await getDocs(questionsQuery)
+      }
+
+      const questions = questionsSnapshot.docs.map((doc) => {
+        const data = doc.data() as QuizQuestion
+        return {
+          ...data,
+          id: doc.id,
+        }
+      })
+
       quiz.questions = questions
       quiz.questionsCount = questions.length
+
+      console.log(`✅ Successfully fetched quiz "${quiz.title}" with ${quiz.questionsCount} questions`)
     } catch (error) {
       console.error(`❌ Error fetching questions for quiz "${slug}":`, error)
       quiz.questions = []
       quiz.questionsCount = 0
     }
 
-    console.log(`✅ Successfully fetched quiz "${quiz.title}" with ${quiz.questionsCount} questions`)
     return quiz
   } catch (error) {
     console.error(`❌ Error fetching quiz with slug "${slug}":`, error)
@@ -193,7 +191,7 @@ export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> 
 }
 
 // Get questions by quiz slug
-export async function firebaseGetQuestionsByQuizSlug(quizSlug: string): Promise<Question[]> {
+export async function firebaseGetQuestionsByQuizSlug(quizSlug: string): Promise<QuizQuestion[]> {
   try {
     console.log(`🔥 Fetching questions for quiz "${quizSlug}" from Firebase...`)
     const questionsCollection = collection(db, "questions")
@@ -206,7 +204,7 @@ export async function firebaseGetQuestionsByQuizSlug(quizSlug: string): Promise<
     }
 
     const questions = querySnapshot.docs.map((doc) => {
-      const data = doc.data() as Question
+      const data = doc.data() as QuizQuestion
       return {
         ...data,
         id: doc.id,
@@ -320,6 +318,29 @@ export async function firebaseDeleteQuiz(id: string): Promise<void> {
   }
 }
 
+// Add the missing firebaseSaveQuizResult function
+export async function firebaseSaveQuizResult(userId: string, quizId: string, score: number, totalQuestions: number) {
+  try {
+    const resultData = {
+      userId,
+      quizId,
+      score,
+      totalQuestions,
+      percentage: Math.round((score / totalQuestions) * 100),
+      completedAt: new Date().toISOString(),
+    }
+
+    const resultsRef = collection(db, "quiz_results")
+    await addDoc(resultsRef, resultData)
+
+    console.log("✅ Quiz result saved successfully")
+    return { error: null }
+  } catch (error: any) {
+    console.error("❌ Error saving quiz result to Firebase:", error)
+    return { error: { message: error.message, code: error.code } }
+  }
+}
+
 // CRUD Operations for Topics
 export async function firebaseCreateTopic(topicData: Omit<Topic, "id" | "createdAt" | "updatedAt">): Promise<Topic> {
   try {
@@ -413,59 +434,5 @@ export async function firebaseDeleteProject(id: string): Promise<void> {
   } catch (error) {
     console.error("❌ Error deleting project:", error)
     throw new Error(`Failed to delete project: ${error.message}`)
-  }
-}
-
-// Add missing functions
-export async function firebaseSaveQuizResult(userId: string, quizId: string, score: number, totalQuestions: number) {
-  try {
-    const resultData = {
-      userId,
-      quizId,
-      score,
-      totalQuestions,
-      percentage: Math.round((score / totalQuestions) * 100),
-      completedAt: new Date().toISOString(),
-    }
-
-    const resultsRef = collection(db, "quiz_results")
-    await addDoc(resultsRef, resultData)
-
-    console.log("✅ Quiz result saved successfully")
-    return { error: null }
-  } catch (error: any) {
-    console.error("❌ Error saving quiz result to Firebase:", error)
-    return { error: { message: error.message, code: error.code } }
-  }
-}
-
-export async function firebaseGetPublicUserProfile(userId: string) {
-  try {
-    const userRef = doc(db, "users", userId)
-    const userSnapshot = await getDoc(userRef)
-
-    if (!userSnapshot.exists()) {
-      return null
-    }
-
-    const userData = userSnapshot.data()
-
-    // Get user's quiz results count
-    const resultsRef = collection(db, "quiz_results")
-    const q = query(resultsRef, where("userId", "==", userId))
-    const resultsSnapshot = await getDocs(q)
-
-    return {
-      id: userSnapshot.id,
-      display_name: userData.display_name || null,
-      github_username: userData.github_username || null,
-      github_avatar: userData.github_avatar || null,
-      repositories: userData.repositories || [],
-      quiz_count: resultsSnapshot.size,
-      created_at: userData.created_at || new Date().toISOString(),
-    }
-  } catch (error) {
-    console.error("Error fetching public user profile from Firebase:", error)
-    throw error
   }
 }

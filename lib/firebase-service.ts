@@ -282,37 +282,5 @@ export const firebaseGetUserTopicProgress = async (userId: string) => {
   }
 }
 
-// Get public user profile
-export const firebaseGetPublicUserProfile = async (userId: string) => {
-  try {
-    const userRef = doc(db, "users", userId)
-    const userSnapshot = await getDoc(userRef)
-
-    if (!userSnapshot.exists()) {
-      return null
-    }
-
-    const userData = userSnapshot.data()
-
-    // Get user's quiz results count
-    const resultsRef = collection(db, "quiz_results")
-    const q = query(resultsRef, where("userId", "==", userId))
-    const resultsSnapshot = await getDocs(q)
-
-    return {
-      id: userSnapshot.id,
-      display_name: userData.display_name || null,
-      github_username: userData.github_username || null,
-      github_avatar: userData.github_avatar || null,
-      repositories: userData.repositories || [],
-      quiz_count: resultsSnapshot.size,
-      created_at: userData.created_at || new Date().toISOString(),
-    }
-  } catch (error) {
-    console.error("Error fetching public user profile from Firebase:", error)
-    throw error
-  }
-}
-
 // Re-export auth and db for backward compatibility
 export { auth, db }

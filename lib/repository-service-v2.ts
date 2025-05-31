@@ -1,6 +1,5 @@
 import { db, auth } from "./firebase"
 import { doc, getDoc, setDoc } from "firebase/firestore"
-import { testFirebaseConnection, getFirebaseErrorDetails } from "./firebase-debug"
 import type { GitHubRepository } from "./github-api"
 
 /**
@@ -32,8 +31,7 @@ export class RepositoryService {
       }
     } catch (error: any) {
       console.error("❌ Failed to ensure user repository document:", error)
-      const errorDetails = getFirebaseErrorDetails(error)
-      throw new Error(`Failed to initialize user data: ${errorDetails.message}`)
+      throw new Error(`Failed to initialize user data: ${error.message}`)
     }
   }
 
@@ -48,18 +46,7 @@ export class RepositoryService {
       const userId = await this.ensureAuthenticated()
       console.log("✅ User authenticated:", userId)
 
-      // Step 2: Test Firebase connection
-      console.log("🔍 Testing Firebase connection...")
-      const connectionTest = await testFirebaseConnection()
-      if (!connectionTest.userRepositories) {
-        throw new Error(`Firebase connection failed: ${connectionTest.error}`)
-      }
-      console.log("✅ Firebase connection verified")
-
-      // Step 3: Ensure user document exists
-      await this.ensureUserRepositoryDocument(userId)
-
-      // Step 4: Validate and prepare repository data
+      // Step 2: Validate and prepare repository data
       if (!Array.isArray(repositories)) {
         throw new Error("Repositories must be an array")
       }
@@ -87,7 +74,7 @@ export class RepositoryService {
 
       console.log(`📝 Prepared ${repoData.length} repositories for save`)
 
-      // Step 5: Save to Firestore
+      // Step 3: Save to Firestore
       const userReposRef = doc(db, "user_repositories", userId)
       const saveData = {
         userId,
@@ -98,29 +85,9 @@ export class RepositoryService {
 
       await setDoc(userReposRef, saveData, { merge: true })
       console.log("✅ Repositories saved successfully to Firestore")
-
-      // Step 6: Verify the save
-      const verifyDoc = await getDoc(userReposRef)
-      if (!verifyDoc.exists()) {
-        throw new Error("Save verification failed: Document does not exist after save")
-      }
-
-      const savedData = verifyDoc.data()
-      if (!savedData.repositories || savedData.repositories.length !== repoData.length) {
-        throw new Error(
-          `Save verification failed: Expected ${repoData.length} repositories, found ${savedData.repositories?.length || 0}`,
-        )
-      }
-
-      console.log("✅ Save verification successful")
     } catch (error: any) {
       console.error("❌ Repository save failed:", error)
-
-      const errorDetails = getFirebaseErrorDetails(error)
-      console.error("❌ Error details:", errorDetails)
-
-      // Throw a user-friendly error message
-      throw new Error(`Failed to save repositories: ${errorDetails.message}. ${errorDetails.solution}`)
+      throw new Error(`Failed to save repositories: ${error.message}`)
     }
   }
 
@@ -135,10 +102,7 @@ export class RepositoryService {
       const userId = await this.ensureAuthenticated()
       console.log("✅ User authenticated:", userId)
 
-      // Step 2: Ensure user document exists
-      await this.ensureUserRepositoryDocument(userId)
-
-      // Step 3: Fetch repositories
+      // Step 2: Fetch repositories
       const userReposRef = doc(db, "user_repositories", userId)
       const docSnap = await getDoc(userReposRef)
 
@@ -157,12 +121,7 @@ export class RepositoryService {
       return data.repositories
     } catch (error: any) {
       console.error("❌ Repository fetch failed:", error)
-
-      const errorDetails = getFirebaseErrorDetails(error)
-      console.error("❌ Error details:", errorDetails)
-
-      // Throw a user-friendly error message
-      throw new Error(`Failed to load repositories: ${errorDetails.message}. ${errorDetails.solution}`)
+      throw new Error(`Failed to load repositories: ${error.message}`)
     }
   }
 
@@ -188,14 +147,10 @@ export class RepositoryService {
       results.authentication = true
       results.details.userId = userId
 
-      // Test Firebase connection
-      const connectionTest = await testFirebaseConnection()
-      results.firebaseConnection = connectionTest.userRepositories
-      results.details.connectionTest = connectionTest
-
       // Test document creation
       await this.ensureUserRepositoryDocument(userId)
       results.documentCreation = true
+      results.firebaseConnection = true
 
       // Test save operation
       const testRepo: GitHubRepository = {

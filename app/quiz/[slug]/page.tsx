@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { firebaseGetQuizBySlug, firebaseSaveQuizResult, type QuizQuestion } from "@/lib/firebase-service"
+import { firebaseGetQuizBySlug, firebaseSaveQuizResult, type QuizQuestion } from "@/lib/firebase-service-fixed"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
