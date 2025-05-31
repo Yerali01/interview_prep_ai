@@ -20,7 +20,12 @@ import {
   Package,
   Copy,
 } from "lucide-react"
-import { firebaseGetProjectBySlug } from "@/lib/firebase-service-fixed"
+import {
+  firebaseGetEnhancedProjectBySlug,
+  processTechnologies,
+  processFeatures,
+  type EnhancedProject,
+} from "@/lib/firebase-service-enhanced"
 import { useToast } from "@/components/ui/use-toast"
 
 // Define interfaces for better type safety
@@ -63,7 +68,7 @@ export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
-  const [project, setProject] = useState<Project | null>(null)
+  const [project, setProject] = useState<EnhancedProject | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,7 +81,7 @@ export default function ProjectDetailPage() {
         setError(null)
         console.log("🔥 Fetching project from Firebase with slug:", params.slug)
 
-        const projectData = await firebaseGetProjectBySlug(params.slug as string)
+        const projectData = await firebaseGetEnhancedProjectBySlug(params.slug as string)
         console.log("🔥 Firebase project data received:", projectData)
 
         if (!projectData) {
@@ -97,46 +102,12 @@ export default function ProjectDetailPage() {
   }, [params.slug])
 
   // Safe data extraction with fallbacks
-  const safeGetTechnologies = (project: Project): Technology[] => {
-    try {
-      if (!project?.technologies) return []
-
-      if (Array.isArray(project.technologies)) {
-        return project.technologies.filter((tech) => tech && typeof tech === "object")
-      }
-
-      // If it's an object, try to extract values
-      if (typeof project.technologies === "object") {
-        const values = Object.values(project.technologies)
-        return values.filter((tech) => tech && typeof tech === "object") as Technology[]
-      }
-
-      return []
-    } catch (err) {
-      console.error("Error processing technologies:", err)
-      return []
-    }
+  const safeGetTechnologies = (project: EnhancedProject): Technology[] => {
+    return processTechnologies(project?.technologies)
   }
 
-  const safeGetFeatures = (project: Project): Feature[] => {
-    try {
-      if (!project?.features) return []
-
-      if (Array.isArray(project.features)) {
-        return project.features.filter((feature) => feature && typeof feature === "object")
-      }
-
-      // If it's an object, try to extract values
-      if (typeof project.features === "object") {
-        const values = Object.values(project.features)
-        return values.filter((feature) => feature && typeof feature === "object") as Feature[]
-      }
-
-      return []
-    } catch (err) {
-      console.error("Error processing features:", err)
-      return []
-    }
+  const safeGetFeatures = (project: EnhancedProject): Feature[] => {
+    return processFeatures(project?.features)
   }
 
   const getDifficultyColor = (difficulty?: string) => {

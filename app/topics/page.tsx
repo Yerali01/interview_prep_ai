@@ -23,7 +23,7 @@ export default function TopicsPage() {
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
-    // Filter topics based on search query and active tab
+    // Filter and sort topics based on search query and active tab
     const filtered = topics.filter((topic) => {
       const matchesSearch =
         topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -31,7 +31,16 @@ export default function TopicsPage() {
       const matchesTab = activeTab === "all" || topic.level === activeTab
       return matchesSearch && matchesTab
     })
-    setFilteredTopics(filtered)
+
+    // Sort by difficulty level: junior -> middle -> senior
+    const difficultyOrder = { junior: 1, middle: 2, senior: 3 }
+    const sorted = filtered.sort((a, b) => {
+      const aOrder = difficultyOrder[a.level] || 999
+      const bOrder = difficultyOrder[b.level] || 999
+      return aOrder - bOrder
+    })
+
+    setFilteredTopics(sorted)
   }, [searchQuery, activeTab, topics])
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
