@@ -1,8 +1,11 @@
 "use client"
 
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = "force-dynamic"
+
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/components/auth/auth-provider" // Fixed import path
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,8 +13,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/components/ui/use-toast"
-import { Github, User, Code, BookOpen } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Github, User, Code, BookOpen, ArrowLeft, Loader2 } from "lucide-react"
+import Link from "next/link"
 import { getUserRepositories, saveUserRepositories } from "@/lib/repository-service-v2"
 import { UserProjectsShowcase } from "@/components/user-projects-showcase"
 
@@ -43,7 +47,7 @@ export default function ProfilePage() {
 
     try {
       setIsLoading(true)
-      const userRepos = await getUserRepositories(user.uid)
+      const userRepos = await getUserRepositories(user.id) // Use user.id instead of user.uid
       setRepositories(userRepos || [])
     } catch (error) {
       console.error("Error loading repositories:", error)
@@ -92,7 +96,7 @@ export default function ProfilePage() {
 
     try {
       setIsSaving(true)
-      await saveUserRepositories(user.uid, repositories)
+      await saveUserRepositories(user.id, repositories) // Use user.id instead of user.uid
       toast({
         title: "Repositories saved",
         description: "Your repositories have been updated successfully.",
@@ -114,41 +118,44 @@ export default function ProfilePage() {
     return url.includes("github.com/")
   }
 
+  // Show loading spinner while auth is loading
   if (authLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <Skeleton className="h-16 w-16 rounded-full" />
-            <div>
-              <Skeleton className="h-6 w-32 mb-2" />
-              <Skeleton className="h-4 w-48" />
-            </div>
-          </div>
-          <Skeleton className="h-64 w-full rounded-lg" />
-        </div>
+      <div className="container mx-auto px-4 py-12 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
   }
 
+  // Don't render anything if no user (will redirect)
   if (!user) {
-    return null // Will redirect in useEffect
+    return null
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container max-w-4xl mx-auto py-12 px-4">
+      <Button variant="ghost" className="mb-6" asChild>
+        <Link href="/">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+        </Link>
+      </Button>
+
       <div className="max-w-3xl mx-auto">
         {/* Profile Header */}
         <div className="flex items-center gap-4 mb-6">
           <Avatar className="h-16 w-16">
-            <AvatarImage src={user.photoURL || undefined} alt={user.displayName || "User"} />
+            <AvatarImage
+              src={user.github_avatar || user.avatar_url || "/placeholder.svg"}
+              alt={user.display_name || user.email || "User"}
+            />
             <AvatarFallback>
               <User className="h-8 w-8" />
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-2xl font-bold">{user.displayName || "Anonymous User"}</h1>
+            <h1 className="text-2xl font-bold">{user.display_name || user.email || "Anonymous User"}</h1>
             <p className="text-muted-foreground">{user.email}</p>
+            {user.github_username && <p className="text-sm text-muted-foreground">@{user.github_username}</p>}
           </div>
         </div>
 
@@ -252,7 +259,7 @@ export default function ProfilePage() {
                 <CardDescription>Projects you've completed from the Flutter Interview Prep platform.</CardDescription>
               </CardHeader>
               <CardContent>
-                <UserProjectsShowcase userId={user.uid} isCurrentUser={true} />
+                <UserProjectsShowcase userId={user.id} isCurrentUser={true} />
               </CardContent>
             </Card>
           </TabsContent>
