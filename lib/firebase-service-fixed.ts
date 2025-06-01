@@ -1,4 +1,16 @@
-import { collection, doc, getDocs, query, where, addDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  where,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  orderBy,
+  getDoc,
+} from "firebase/firestore"
 import { db } from "./firebase"
 
 // Type definitions
@@ -509,5 +521,60 @@ export async function firebaseDeleteProject(id: string): Promise<void> {
   } catch (error) {
     console.error("❌ Error deleting project:", error)
     throw new Error(`Failed to delete project: ${error.message}`)
+  }
+}
+
+// Get public user profile with repositories
+export async function firebaseGetPublicUserProfile(userId: string) {
+  try {
+    console.log(`🔥 Fetching public profile for user "${userId}" from Firebase...`)
+
+    // Get user profile from users collection
+    const userRef = doc(db, "users", userId)
+    const userDoc = await getDoc(userRef)
+
+    if (!userDoc.exists()) {
+      console.log(`⚠️ No user found with ID "${userId}"`)
+      return null
+    }
+
+    const userData = userDoc.data()
+
+    // Get user's public repositories/projects
+    const userProjectsRef = collection(db, "user_projects")
+    const q = query(
+      userProjectsRef,
+      where("userId", "==", userId),
+      where("isPublic", "==", true),
+      orderBy("createdAt", "desc"),
+    )
+
+    const projectsSnapshot = await getDocs(q)
+    const repositories = projectsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      stargazers_count: 0, // Default value
+    }))
+
+    // Get quiz completion count
+    const quizResultsRef = collection(db, "quiz_results")
+    const quizQuery = query(quizResultsRef, where("userId", "==", userId))
+    const quizSnapshot = await getDocs(quizQuery)
+
+    const profile = {
+      id: userId,
+      display_name: userData.display_name || userData.name || null,
+      github_username: userData.github_username || null,
+      github_avatar: userData.avatar_url || userData.github_avatar || null,
+      repositories,
+      quiz_count: quizSnapshot.size,
+      created_at: userData.created_at || userData.createdAt || new Date().toISOString(),
+    }
+
+    console.log(`✅ Successfully fetched public profile for user "${userId}"`)
+    return profile
+  } catch (error: any) {
+    console.error(`❌ Error fetching public profile for user "${userId}":`, error)
+    throw new Error(`Failed to fetch public profile: ${error.message}`)
   }
 }

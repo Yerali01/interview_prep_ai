@@ -126,7 +126,7 @@ export function UserProjectsShowcase({ userId, isCurrentUser = false }: UserProj
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg">{project.projectTitle}</CardTitle>
+                    <CardTitle className="text-lg">{project.projectTitle || project.projectName}</CardTitle>
                     <CardDescription className="mt-1">{project.description}</CardDescription>
                   </div>
                   {isCurrentUser && (
@@ -134,7 +134,7 @@ export function UserProjectsShowcase({ userId, isCurrentUser = false }: UserProj
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleToggleVisibility(project.id, project.isPublic)}
+                        onClick={() => handleToggleVisibility(project.id!, project.isPublic)}
                         className="flex items-center gap-1"
                       >
                         {project.isPublic ? (
@@ -152,7 +152,7 @@ export function UserProjectsShowcase({ userId, isCurrentUser = false }: UserProj
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteProject(project.id)}
+                        onClick={() => handleDeleteProject(project.id!)}
                         className="text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
