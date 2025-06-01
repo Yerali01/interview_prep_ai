@@ -1,186 +1,113 @@
+import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, query, where, orderBy } from "firebase/firestore"
 import { db } from "./firebase"
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-  deleteDoc,
-  orderBy,
-  getDoc,
-} from "firebase/firestore"
 
 export interface UserProject {
-  id: string
+  id?: string
   userId: string
-  userName: string
-  userPhotoUrl: string | null
+  userName?: string
+  userAvatar?: string
   projectId: string
   projectSlug: string
   projectName: string
   githubUrl: string
-  demoUrl: string | null
-  description: string | null
+  demoUrl?: string
+  description?: string
   isPublic: boolean
-  createdAt: Date | null
+  createdAt?: string
+  updatedAt?: string
 }
 
-export interface UserProjectInput {
-  userId: string
-  userName: string
-  userPhotoUrl: string | null
-  projectId: string
-  projectSlug: string
-  projectName: string
-  githubUrl: string
-  demoUrl: string | null
-  description: string | null
-  isPublic: boolean
-  createdAt: Date
-}
-
-const USER_PROJECTS_COLLECTION = "user_projects"
-
-// Add a new user project
-export async function addUserProject(project: UserProjectInput): Promise<string> {
+export async function addUserProject(projectData: Omit<UserProject, "id" | "createdAt" | "updatedAt">) {
   try {
-    // Check if user already has this project
-    const existingQuery = query(
-      collection(db, USER_PROJECTS_COLLECTION),
-      where("userId", "==", project.userId),
-      where("projectSlug", "==", project.projectSlug),
-    )
+    const userProjectsRef = collection(db, "user_projects")
 
-    const existingDocs = await getDocs(existingQuery)
-
-    if (!existingDocs.empty) {
-      throw new Error("You have already added this project to your profile")
+    const docData = {
+      ...projectData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
 
-    const docRef = await addDoc(collection(db, USER_PROJECTS_COLLECTION), {
-      ...project,
-      createdAt: project.createdAt.toISOString(),
-    })
+    const docRef = await addDoc(userProjectsRef, docData)
 
-    return docRef.id
-  } catch (error) {
-    console.error("Error adding user project:", error)
-    throw error
+    console.log("✅ User project added successfully:", docRef.id)
+    return { data: { id: docRef.id, ...docData }, error: null }
+  } catch (error: any) {
+    console.error("❌ Error adding user project:", error)
+    return { data: null, error: { message: error.message, code: error.code } }
   }
 }
 
-// Get all public projects for a specific project slug
-export async function getUserProjectsByProjectSlug(projectSlug: string): Promise<UserProject[]> {
+export async function getUserProjects(userId: string) {
   try {
+    const userProjectsRef = collection(db, "user_projects")
+    const q = query(userProjectsRef, where("userId", "==", userId), orderBy("createdAt", "desc"))
+
+    const querySnapshot = await getDocs(q)
+    const projects = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as UserProject[]
+
+    console.log(`✅ Successfully fetched ${projects.length} user projects`)
+    return { data: projects, error: null }
+  } catch (error: any) {
+    console.error("❌ Error fetching user projects:", error)
+    return { data: null, error: { message: error.message, code: error.code } }
+  }
+}
+
+export async function getProjectShowcases(projectSlug: string) {
+  try {
+    const userProjectsRef = collection(db, "user_projects")
     const q = query(
-      collection(db, USER_PROJECTS_COLLECTION),
+      userProjectsRef,
       where("projectSlug", "==", projectSlug),
       where("isPublic", "==", true),
       orderBy("createdAt", "desc"),
     )
 
     const querySnapshot = await getDocs(q)
+    const showcases = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as UserProject[]
 
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        userId: data.userId,
-        userName: data.userName,
-        userPhotoUrl: data.userPhotoUrl,
-        projectId: data.projectId,
-        projectSlug: data.projectSlug,
-        projectName: data.projectName,
-        githubUrl: data.githubUrl,
-        demoUrl: data.demoUrl,
-        description: data.description,
-        isPublic: data.isPublic,
-        createdAt: data.createdAt ? new Date(data.createdAt) : null,
-      }
-    })
-  } catch (error) {
-    console.error("Error getting user projects by project slug:", error)
-    throw error
+    console.log(`✅ Successfully fetched ${showcases.length} project showcases`)
+    return { data: showcases, error: null }
+  } catch (error: any) {
+    console.error("❌ Error fetching project showcases:", error)
+    return { data: null, error: { message: error.message, code: error.code } }
   }
 }
 
-// Get all projects for a specific user
-export async function getUserProjectsByUserId(userId: string, includePrivate = false): Promise<UserProject[]> {
+export async function updateUserProject(projectId: string, updates: Partial<UserProject>) {
   try {
-    let q
+    const projectRef = doc(db, "user_projects", projectId)
 
-    if (includePrivate) {
-      // Get all projects (public and private) if viewing own profile
-      q = query(collection(db, USER_PROJECTS_COLLECTION), where("userId", "==", userId), orderBy("createdAt", "desc"))
-    } else {
-      // Get only public projects if viewing someone else's profile
-      q = query(
-        collection(db, USER_PROJECTS_COLLECTION),
-        where("userId", "==", userId),
-        where("isPublic", "==", true),
-        orderBy("createdAt", "desc"),
-      )
+    const updateData = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
     }
 
-    const querySnapshot = await getDocs(q)
+    await updateDoc(projectRef, updateData)
 
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        userId: data.userId,
-        userName: data.userName,
-        userPhotoUrl: data.userPhotoUrl,
-        projectId: data.projectId,
-        projectSlug: data.projectSlug,
-        projectName: data.projectName,
-        githubUrl: data.githubUrl,
-        demoUrl: data.demoUrl,
-        description: data.description,
-        isPublic: data.isPublic,
-        createdAt: data.createdAt ? new Date(data.createdAt) : null,
-      }
-    })
-  } catch (error) {
-    console.error("Error getting user projects by user ID:", error)
-    throw error
+    console.log("✅ User project updated successfully:", projectId)
+    return { error: null }
+  } catch (error: any) {
+    console.error("❌ Error updating user project:", error)
+    return { error: { message: error.message, code: error.code } }
   }
 }
 
-// Update a user project
-export async function updateUserProject(projectId: string, updates: Partial<UserProject>): Promise<void> {
+export async function deleteUserProject(projectId: string) {
   try {
-    const projectRef = doc(db, USER_PROJECTS_COLLECTION, projectId)
-
-    // Ensure the project exists
-    const projectDoc = await getDoc(projectRef)
-    if (!projectDoc.exists()) {
-      throw new Error("Project not found")
-    }
-
-    await updateDoc(projectRef, updates)
-  } catch (error) {
-    console.error("Error updating user project:", error)
-    throw error
-  }
-}
-
-// Delete a user project
-export async function deleteUserProject(projectId: string): Promise<void> {
-  try {
-    const projectRef = doc(db, USER_PROJECTS_COLLECTION, projectId)
-
-    // Ensure the project exists
-    const projectDoc = await getDoc(projectRef)
-    if (!projectDoc.exists()) {
-      throw new Error("Project not found")
-    }
-
+    const projectRef = doc(db, "user_projects", projectId)
     await deleteDoc(projectRef)
-  } catch (error) {
-    console.error("Error deleting user project:", error)
-    throw error
+
+    console.log("✅ User project deleted successfully:", projectId)
+    return { error: null }
+  } catch (error: any) {
+    console.error("❌ Error deleting user project:", error)
+    return { error: { message: error.message, code: error.code } }
   }
 }

@@ -1,34 +1,44 @@
 "use client"
 
-import type React from "react"
-import { createContext, useState, useEffect, useContext, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { firebaseGetTopics } from "@/lib/firebase-service-fixed"
 
 interface Topic {
   id: string
-  name: string
+  title: string
+  slug: string
   description: string
+  content: string
+  level: string
+  estimated_time: number
+  createdAt?: string
+  updatedAt?: string
 }
 
-interface TopicsContextProps {
+interface TopicsContextType {
   topics: Topic[]
   loading: boolean
   error: string | null
-  fetchTopics: () => Promise<void>
-  lastFetched: Date | null
+  refreshTopics: () => Promise<void>
+  lastFetched: string | null
 }
 
-const TopicsContext = createContext<TopicsContextProps | undefined>(undefined)
+const TopicsContext = createContext<TopicsContextType | undefined>(undefined)
 
-interface TopicsProviderProps {
-  children: ReactNode
-}
-
-export const TopicsProvider: React.FC<TopicsProviderProps> = ({ children }) => {
+export function TopicsProvider({ children }: { children: ReactNode }) {
   const [topics, setTopics] = useState<Topic[]>([])
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [lastFetched, setLastFetched] = useState<Date | null>(null)
+  const [lastFetched, setLastFetched] = useState<string | null>(null)
+
+  const sortTopicsByDifficulty = (topics: Topic[]) => {
+    const difficultyOrder = { junior: 1, middle: 2, senior: 3 }
+    return topics.sort((a, b) => {
+      const aOrder = difficultyOrder[a.level as keyof typeof difficultyOrder] || 999
+      const bOrder = difficultyOrder[b.level as keyof typeof difficultyOrder] || 999
+      return aOrder - bOrder
+    })
+  }
 
   const fetchTopics = async () => {
     try {
@@ -36,44 +46,46 @@ export const TopicsProvider: React.FC<TopicsProviderProps> = ({ children }) => {
       setError(null)
       console.log("🔥 Fetching topics from Firebase...")
 
-      const topicsData = await firebaseGetTopics()
-      console.log("🔥 Firebase topics data received:", topicsData)
+      const fetchedTopics = await firebaseGetTopics()
+      console.log("✅ Topics fetched:", fetchedTopics)
 
-      if (Array.isArray(topicsData)) {
-        setTopics(topicsData)
-      } else {
-        console.warn("⚠️ Topics data is not an array:", topicsData)
-        setTopics([])
-      }
-
-      setLastFetched(new Date())
+      const sortedTopics = sortTopicsByDifficulty(fetchedTopics)
+      setTopics(sortedTopics)
+      setLastFetched(new Date().toISOString())
     } catch (err) {
       console.error("❌ Error fetching topics:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch topics")
-      setTopics([])
     } finally {
       setLoading(false)
     }
+  }
+
+  const refreshTopics = async () => {
+    await fetchTopics()
   }
 
   useEffect(() => {
     fetchTopics()
   }, [])
 
-  const value: TopicsContextProps = {
-    topics,
-    loading,
-    error,
-    fetchTopics,
-    lastFetched,
-  }
-
-  return <TopicsContext.Provider value={value}>{children}</TopicsContext.Provider>
+  return (
+    <TopicsContext.Provider
+      value={{
+        topics,
+        loading,
+        error,
+        refreshTopics,
+        lastFetched,
+      }}
+    >
+      {children}
+    </TopicsContext.Provider>
+  )
 }
 
-export const useTopics = (): TopicsContextProps => {
+export function useTopics() {
   const context = useContext(TopicsContext)
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useTopics must be used within a TopicsProvider")
   }
   return context

@@ -3,15 +3,23 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/components/auth/auth-provider"
 import { addUserProject } from "@/lib/project-showcase-service"
-import { useAuth } from "@/contexts/auth-context"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2 } from "lucide-react"
 
 interface AddProjectModalProps {
   isOpen: boolean
@@ -32,11 +40,13 @@ export function AddProjectModal({
 }: AddProjectModalProps) {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [githubUrl, setGithubUrl] = useState("")
-  const [demoUrl, setDemoUrl] = useState("")
-  const [description, setDescription] = useState("")
-  const [isPublic, setIsPublic] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    githubUrl: "",
+    demoUrl: "",
+    description: "",
+    isPublic: true,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,13 +54,13 @@ export function AddProjectModal({
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please sign in to add your project implementation.",
+        description: "Please sign in to add your project.",
         variant: "destructive",
       })
       return
     }
 
-    if (!githubUrl) {
+    if (!formData.githubUrl.trim()) {
       toast({
         title: "GitHub URL required",
         description: "Please provide a link to your GitHub repository.",
@@ -60,21 +70,22 @@ export function AddProjectModal({
     }
 
     try {
-      setIsSubmitting(true)
+      setLoading(true)
 
-      await addUserProject({
-        userId: user.uid,
-        userName: user.displayName || "Anonymous",
-        userPhotoUrl: user.photoURL || null,
+      const result = await addUserProject({
+        userId: user.id,
         projectId,
         projectSlug,
         projectName,
-        githubUrl,
-        demoUrl: demoUrl || null,
-        description: description || null,
-        isPublic,
-        createdAt: new Date(),
+        githubUrl: formData.githubUrl.trim(),
+        demoUrl: formData.demoUrl.trim() || undefined,
+        description: formData.description.trim() || undefined,
+        isPublic: formData.isPublic,
       })
+
+      if (result.error) {
+        throw new Error(result.error.message)
+      }
 
       toast({
         title: "Project added!",
@@ -82,59 +93,56 @@ export function AddProjectModal({
       })
 
       // Reset form
-      setGithubUrl("")
-      setDemoUrl("")
-      setDescription("")
-      setIsPublic(true)
+      setFormData({
+        githubUrl: "",
+        demoUrl: "",
+        description: "",
+        isPublic: true,
+      })
 
-      // Close modal
+      onSuccess?.()
       onClose()
-
-      // Call success callback if provided
-      if (onSuccess) {
-        onSuccess()
-      }
     } catch (error) {
       console.error("Error adding project:", error)
       toast({
         title: "Error",
-        description: "Failed to add your project. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add project",
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Your Implementation</DialogTitle>
-          <DialogDescription>
-            Share your implementation of <span className="font-medium">{projectName}</span> with the community.
-          </DialogDescription>
+          <DialogDescription>Share your implementation of "{projectName}" with the community.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="github-url">GitHub Repository URL *</Label>
+            <Label htmlFor="githubUrl">GitHub Repository URL *</Label>
             <Input
-              id="github-url"
-              placeholder="https://github.com/yourusername/repository"
-              value={githubUrl}
-              onChange={(e) => setGithubUrl(e.target.value)}
+              id="githubUrl"
+              type="url"
+              placeholder="https://github.com/username/repository"
+              value={formData.githubUrl}
+              onChange={(e) => setFormData((prev) => ({ ...prev, githubUrl: e.target.value }))}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="demo-url">Demo URL (optional)</Label>
+            <Label htmlFor="demoUrl">Demo URL (optional)</Label>
             <Input
-              id="demo-url"
-              placeholder="https://your-demo-site.com"
-              value={demoUrl}
-              onChange={(e) => setDemoUrl(e.target.value)}
+              id="demoUrl"
+              type="url"
+              placeholder="https://your-demo.com"
+              value={formData.demoUrl}
+              onChange={(e) => setFormData((prev) => ({ ...prev, demoUrl: e.target.value }))}
             />
           </div>
 
@@ -142,29 +150,31 @@ export function AddProjectModal({
             <Label htmlFor="description">Description (optional)</Label>
             <Textarea
               id="description"
-              placeholder="Share details about your implementation, challenges you faced, or unique features you added."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tell us about your implementation, challenges you faced, or features you added..."
+              value={formData.description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               rows={3}
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="public-switch">Make Public</Label>
-              <p className="text-sm text-muted-foreground">Allow others to see your implementation</p>
-            </div>
-            <Switch id="public-switch" checked={isPublic} onCheckedChange={setIsPublic} />
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="isPublic"
+              checked={formData.isPublic}
+              onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isPublic: checked }))}
+            />
+            <Label htmlFor="isPublic">Make this project public</Label>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !githubUrl}>
-              {isSubmitting ? "Adding..." : "Add Project"}
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Project
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
