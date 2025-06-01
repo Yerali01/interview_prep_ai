@@ -2,6 +2,64 @@ import { db, auth } from "./firebase"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import type { GitHubRepository } from "./github-api"
 
+// Get user repositories
+export async function getUserRepositories(userId: string): Promise<string[]> {
+  try {
+    console.log(`🔍 Getting repositories for user: ${userId}`)
+
+    if (!userId) {
+      console.warn("⚠️ No user ID provided to getUserRepositories")
+      return []
+    }
+
+    const userDocRef = doc(db, "users", userId)
+    const userDoc = await getDoc(userDocRef)
+
+    if (!userDoc.exists()) {
+      console.log(`⚠️ User document not found for ID: ${userId}`)
+      return []
+    }
+
+    const userData = userDoc.data()
+    const repositories = userData?.repositories || []
+
+    // Ensure all repositories are strings to prevent the e.replace error
+    const validRepositories = repositories.filter((repo) => typeof repo === "string")
+
+    if (validRepositories.length !== repositories.length) {
+      console.warn(`⚠️ Found ${repositories.length - validRepositories.length} invalid repositories`)
+    }
+
+    console.log(`✅ Found ${validRepositories.length} repositories`)
+    return validRepositories
+  } catch (error) {
+    console.error("❌ Error getting user repositories:", error)
+    return []
+  }
+}
+
+// Save user repositories
+export async function saveUserRepositories(userId: string, repositories: string[]): Promise<void> {
+  try {
+    console.log(`💾 Saving ${repositories.length} repositories for user: ${userId}`)
+
+    if (!userId) {
+      throw new Error("No user ID provided")
+    }
+
+    // Ensure all repositories are strings
+    const validRepositories = repositories.filter((repo) => typeof repo === "string")
+
+    const userDocRef = doc(db, "users", userId)
+    await setDoc(userDocRef, { repositories: validRepositories }, { merge: true })
+
+    console.log(`✅ Successfully saved repositories for user: ${userId}`)
+  } catch (error) {
+    console.error("❌ Error saving user repositories:", error)
+    throw error
+  }
+}
+
 /**
  * Enhanced repository service with comprehensive error handling
  */
@@ -195,6 +253,6 @@ export class RepositoryService {
 }
 
 // Export the functions for backward compatibility
-export const saveUserRepositories = RepositoryService.saveUserRepositories.bind(RepositoryService)
-export const getUserRepositories = RepositoryService.getUserRepositories.bind(RepositoryService)
-export const testRepositoryOperations = RepositoryService.testRepositoryOperations.bind(RepositoryService)
+// export const saveUserRepositories = RepositoryService.saveUserRepositories.bind(RepositoryService)
+// export const getUserRepositories = RepositoryService.getUserRepositories.bind(RepositoryService)
+// export const testRepositoryOperations = RepositoryService.testRepositoryOperations.bind(RepositoryService)

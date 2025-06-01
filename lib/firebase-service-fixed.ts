@@ -8,10 +8,10 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  orderBy,
   getDoc,
 } from "firebase/firestore"
 import { db } from "./firebase"
+import { getUserRepositories } from "./repository-service-v2"
 
 // Type definitions
 type DifficultyLevel = "junior" | "middle" | "senior"
@@ -527,54 +527,50 @@ export async function firebaseDeleteProject(id: string): Promise<void> {
 // Get public user profile with repositories
 export async function firebaseGetPublicUserProfile(userId: string) {
   try {
-    console.log(`🔥 Fetching public profile for user "${userId}" from Firebase...`)
+    console.log(`🔍 Getting public profile for user: ${userId}`)
 
-    // Get user profile from users collection
-    const userRef = doc(db, "users", userId)
-    const userDoc = await getDoc(userRef)
+    if (!userId) {
+      console.warn("⚠️ No user ID provided to firebaseGetPublicUserProfile")
+      return { error: "No user ID provided" }
+    }
+
+    // Get user document
+    const userDocRef = doc(db, "users", userId)
+    const userDoc = await getDoc(userDocRef)
 
     if (!userDoc.exists()) {
-      console.log(`⚠️ No user found with ID "${userId}"`)
-      return null
+      console.log(`⚠️ User document not found for ID: ${userId}`)
+      return { error: "User not found" }
     }
 
     const userData = userDoc.data()
 
-    // Get user's public repositories/projects
-    const userProjectsRef = collection(db, "user_projects")
-    const q = query(
-      userProjectsRef,
-      where("userId", "==", userId),
-      where("isPublic", "==", true),
-      orderBy("createdAt", "desc"),
-    )
+    // Get user repositories
+    const repositories = await getUserRepositories(userId)
 
-    const projectsSnapshot = await getDocs(q)
-    const repositories = projectsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      stargazers_count: 0, // Default value
-    }))
+    // Get quiz completions count
+    const quizCompletionsRef = collection(db, "quiz_completions")
+    const q = query(quizCompletionsRef, where("userId", "==", userId))
+    const quizSnapshot = await getDocs(q)
+    const quizCount = quizSnapshot.size
 
-    // Get quiz completion count
-    const quizResultsRef = collection(db, "quiz_results")
-    const quizQuery = query(quizResultsRef, where("userId", "==", userId))
-    const quizSnapshot = await getDocs(quizQuery)
-
-    const profile = {
+    // Construct public profile
+    const publicProfile = {
       id: userId,
-      display_name: userData.display_name || userData.name || null,
-      github_username: userData.github_username || null,
-      github_avatar: userData.avatar_url || userData.github_avatar || null,
+      displayName: userData.displayName || userData.email || "Anonymous User",
+      email: userData.email,
+      photoURL: userData.photoURL || null,
+      githubUsername: userData.githubUsername || null,
+      bio: userData.bio || null,
       repositories,
-      quiz_count: quizSnapshot.size,
-      created_at: userData.created_at || userData.createdAt || new Date().toISOString(),
+      quizCount,
+      joinedAt: userData.createdAt || null,
     }
 
-    console.log(`✅ Successfully fetched public profile for user "${userId}"`)
-    return profile
+    console.log(`✅ Successfully fetched public profile for user: ${userId}`)
+    return { data: publicProfile, error: null }
   } catch (error: any) {
-    console.error(`❌ Error fetching public profile for user "${userId}":`, error)
-    throw new Error(`Failed to fetch public profile: ${error.message}`)
+    console.error("❌ Error getting public user profile:", error)
+    return { error: error.message || "Failed to fetch user profile" }
   }
 }

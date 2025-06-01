@@ -1,103 +1,96 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Loader2,
-  Trophy,
-  Github,
-  Calendar,
-  User,
-} from "lucide-react";
-import { firebaseGetPublicUserProfile } from "@/lib/firebase-service-fixed";
-import { RepositoryShowcase } from "@/components/repository-showcase";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ArrowLeft, BookOpen, Code, Github, User } from "lucide-react"
+import Link from "next/link"
+import { UserProjectsShowcase } from "@/components/user-projects-showcase"
+import { useAuth } from "@/components/auth/auth-provider"
+import { firebaseGetPublicUserProfile } from "@/lib/firebase-service-fixed"
 
-interface PublicProfile {
-  id: string;
-  display_name: string | null;
-  github_username: string | null;
-  github_avatar: string | null;
-  repositories: any[];
-  quiz_count: number;
-  created_at: string;
+interface UserProfile {
+  id: string
+  displayName: string
+  email: string
+  photoURL: string | null
+  githubUsername: string | null
+  bio: string | null
+  repositories: string[]
+  quizCount: number
+  joinedAt: string | null
 }
 
-export default function PublicProfilePage() {
-  const params = useParams();
-  const userId = params.userId as string;
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function UserProfilePage() {
+  const { userId } = useParams()
+  const { user } = useAuth()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const isCurrentUser = user?.id === userId
 
   useEffect(() => {
-    loadProfile();
-  }, [userId]);
-
-  const loadProfile = async () => {
-    try {
-      const profileData = await firebaseGetPublicUserProfile(userId);
-      if (!profileData) {
-        setError("Profile not found");
-      } else {
-        setProfile(profileData);
+    const fetchUserProfile = async () => {
+      if (!userId || typeof userId !== "string") {
+        setError("Invalid user ID")
+        setLoading(false)
+        return
       }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-      setError("Failed to load profile");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "long",
-    }).format(date);
-  };
+      try {
+        setLoading(true)
+        const result = await firebaseGetPublicUserProfile(userId)
+
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        setProfile(result.data)
+      } catch (err) {
+        console.error("Error fetching user profile:", err)
+        setError(err instanceof Error ? err.message : "Failed to load user profile")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserProfile()
+  }, [userId])
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12 flex justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="container max-w-4xl mx-auto py-12 px-4">
+        <div className="flex items-center gap-4 mb-6">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-64 w-full" />
       </div>
-    );
+    )
   }
 
   if (error || !profile) {
     return (
       <div className="container max-w-4xl mx-auto py-12 px-4">
-        <Button variant="ghost" className="mb-6" asChild>
-          <Link href="/">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
-          </Link>
-        </Button>
-
-        <Card>
-          <CardContent className="text-center py-12">
-            <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Profile Not Found</h2>
-            <p className="text-muted-foreground">
-              The profile you're looking for doesn't exist or is not public.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold mb-4">User Not Found</h2>
+          <p className="text-muted-foreground mb-6">{error || "Could not load user profile"}</p>
+          <Button asChild>
+            <Link href="/">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+            </Link>
+          </Button>
+        </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -108,126 +101,138 @@ export default function PublicProfilePage() {
         </Link>
       </Button>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="space-y-6"
-      >
+      <div className="max-w-3xl mx-auto">
         {/* Profile Header */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-6">
-              <Avatar className="h-20 w-20">
-                <AvatarImage
-                  src={profile.github_avatar || "/placeholder.svg"}
-                  alt={profile.display_name || "User"}
-                />
-                <AvatarFallback className="text-lg">
-                  {(profile.display_name || profile.github_username || "U")
-                    .charAt(0)
-                    .toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+        <div className="flex items-center gap-4 mb-6">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={profile.photoURL || undefined} alt={profile.displayName} />
+            <AvatarFallback>
+              <User className="h-8 w-8" />
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl font-bold">{profile.displayName}</h1>
+            {isCurrentUser && <p className="text-muted-foreground">{profile.email}</p>}
+            {profile.githubUsername && (
+              <p className="text-sm text-muted-foreground">
+                <a
+                  href={`https://github.com/${profile.githubUsername}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  @{profile.githubUsername}
+                </a>
+              </p>
+            )}
+          </div>
+        </div>
 
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold mb-2">
-                  {profile.display_name ||
-                    profile.github_username ||
-                    "Anonymous User"}
-                </h1>
+        {/* Profile Content */}
+        <Tabs defaultValue="projects">
+          <TabsList className="mb-4">
+            <TabsTrigger value="projects">
+              <Code className="h-4 w-4 mr-2" />
+              Projects
+            </TabsTrigger>
+            {profile.repositories.length > 0 && (
+              <TabsTrigger value="repositories">
+                <Github className="h-4 w-4 mr-2" />
+                Repositories
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="learning">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Learning Progress
+            </TabsTrigger>
+          </TabsList>
 
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-                  {profile.github_username && (
-                    <div className="flex items-center gap-1">
-                      <Github className="h-4 w-4" />
-                      <a
-                        href={`https://github.com/${profile.github_username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-foreground"
-                      >
-                        @{profile.github_username}
-                      </a>
-                    </div>
-                  )}
+          {/* Projects Tab */}
+          <TabsContent value="projects">
+            <Card>
+              <CardHeader>
+                <CardTitle>Projects</CardTitle>
+                <CardDescription>
+                  {isCurrentUser
+                    ? "Projects you've completed from the Flutter Interview Prep platform."
+                    : `Projects ${profile.displayName} has completed from the Flutter Interview Prep platform.`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UserProjectsShowcase userId={userId as string} isCurrentUser={isCurrentUser} />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    Joined {formatDate(profile.created_at)}
+          {/* Repositories Tab */}
+          {profile.repositories.length > 0 && (
+            <TabsContent value="repositories">
+              <Card>
+                <CardHeader>
+                  <CardTitle>GitHub Repositories</CardTitle>
+                  <CardDescription>
+                    {isCurrentUser ? "Your GitHub repositories." : `${profile.displayName}'s GitHub repositories.`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {profile.repositories.map((repo, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-md">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Github className="h-4 w-4 flex-shrink-0" />
+                          <a
+                            href={repo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm truncate hover:underline"
+                          >
+                            {typeof repo === "string" ? repo.replace("https://github.com/", "") : "Unknown Repository"}
+                          </a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
-                <div className="flex gap-4">
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    <Trophy className="h-3 w-3" />
-                    {profile.quiz_count} Quiz
-                    {profile.quiz_count !== 1 ? "zes" : ""} Completed
-                  </Badge>
+          {/* Learning Progress Tab */}
+          <TabsContent value="learning">
+            <Card>
+              <CardHeader>
+                <CardTitle>Learning Progress</CardTitle>
+                <CardDescription>
+                  {isCurrentUser
+                    ? "Track your progress through Flutter topics and quizzes."
+                    : `${profile.displayName}'s progress through Flutter topics and quizzes.`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-4 border rounded-md">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-full">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Quizzes Completed</h3>
+                        <p className="text-sm text-muted-foreground">Total quizzes completed on the platform</p>
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold">{profile.quizCount}</div>
+                  </div>
 
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    <Github className="h-3 w-3" />
-                    {profile.repositories.length} Repository
-                    {profile.repositories.length !== 1 ? "ies" : ""} Showcased
-                  </Badge>
+                  {/* More learning stats will be added here */}
+                  <p className="text-center py-4 text-muted-foreground">
+                    More detailed learning progress tracking coming soon!
+                  </p>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Repository Showcase */}
-        <RepositoryShowcase
-          userId={profile.id}
-          isOwnProfile={false}
-          githubUsername={profile.github_username || undefined}
-        />
-
-        {/* Additional Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity Overview</CardTitle>
-            <CardDescription>Public activity and achievements</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
-                  {profile.quiz_count}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Quizzes Completed
-                </div>
-              </div>
-
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
-                  {profile.repositories.length}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Projects Showcased
-                </div>
-              </div>
-
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">
-                  {profile.repositories.reduce(
-                    (total, repo) => total + repo.stargazers_count,
-                    0
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">Total Stars</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
-  );
+  )
 }

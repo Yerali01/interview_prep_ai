@@ -1,219 +1,281 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/hooks/use-toast"
-import { Github, ExternalLink, Eye, EyeOff, Trash2, Plus } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ExternalLink, Eye, EyeOff, Github, Loader2, Trash } from "lucide-react"
+import Link from "next/link"
 import { ProjectShowcaseService, type UserProject } from "@/lib/project-showcase-service"
-import { AddProjectModal } from "@/components/add-project-modal"
+import { useToast } from "@/hooks/use-toast"
 
 interface UserProjectsShowcaseProps {
   userId: string
-  isCurrentUser?: boolean
+  isCurrentUser: boolean
 }
 
-export function UserProjectsShowcase({ userId, isCurrentUser = false }: UserProjectsShowcaseProps) {
+export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShowcaseProps) {
   const [projects, setProjects] = useState<UserProject[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
 
   useEffect(() => {
-    loadUserProjects()
+    const fetchProjects = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Use the service to get user projects
+        const userProjects = await ProjectShowcaseService.getUserProjects(userId)
+        setProjects(userProjects)
+      } catch (err) {
+        console.error("Error fetching user projects:", err)
+        setError(err instanceof Error ? err.message : "Failed to load projects")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (userId) {
+      fetchProjects()
+    }
   }, [userId])
 
-  const loadUserProjects = async () => {
+  const handleVisibilityChange = async (projectId: string, isPublic: boolean) => {
     try {
-      setIsLoading(true)
-      const userProjects = await ProjectShowcaseService.getUserProjects(userId)
-      setProjects(userProjects)
-    } catch (error) {
-      console.error("Error loading user projects:", error)
-      if (isCurrentUser) {
-        toast({
-          title: "Error",
-          description: "Failed to load your projects.",
-          variant: "destructive",
-        })
-      }
+      setIsUpdating((prev) => ({ ...prev, [projectId]: true }))
+
+      // Use the service to update project visibility
+      await ProjectShowcaseService.updateProjectVisibility(projectId, isPublic)
+
+      // Update local state
+      setProjects(projects.map((project) => (project.id === projectId ? { ...project, isPublic } : project)))
+
+      toast({
+        title: "Visibility updated",
+        description: `Project is now ${isPublic ? "public" : "private"}`,
+      })
+    } catch (err) {
+      console.error("Error updating project visibility:", err)
+      toast({
+        title: "Update failed",
+        description: "Failed to update project visibility",
+        variant: "destructive",
+      })
     } finally {
-      setIsLoading(false)
+      setIsUpdating((prev) => ({ ...prev, [projectId]: false }))
     }
   }
 
-  const handleToggleVisibility = async (projectId: string, currentVisibility: boolean) => {
-    try {
-      await ProjectShowcaseService.updateProjectVisibility(projectId, !currentVisibility)
-      setProjects(projects.map((p) => (p.id === projectId ? { ...p, isPublic: !currentVisibility } : p)))
-      toast({
-        title: "Project Updated",
-        description: `Project is now ${!currentVisibility ? "public" : "private"}.`,
-      })
-    } catch (error) {
-      console.error("Error updating project visibility:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update project visibility.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteProject = async (projectId: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return
 
     try {
-      await ProjectShowcaseService.deleteUserProject(projectId)
-      setProjects(projects.filter((p) => p.id !== projectId))
+      setIsDeleting(true)
+
+      // Use the service to delete the project
+      await ProjectShowcaseService.deleteUserProject(projectToDelete)
+
+      // Update local state
+      setProjects(projects.filter((project) => project.id !== projectToDelete))
+
       toast({
-        title: "Project Deleted",
-        description: "Project has been removed from your profile.",
+        title: "Project deleted",
+        description: "Your project has been removed",
       })
-    } catch (error) {
-      console.error("Error deleting project:", error)
+    } catch (err) {
+      console.error("Error deleting project:", err)
       toast({
-        title: "Error",
-        description: "Failed to delete project.",
+        title: "Delete failed",
+        description: "Failed to delete project",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
+      setProjectToDelete(null)
     }
   }
 
-  const handleProjectAdded = (newProject: UserProject) => {
-    setProjects([newProject, ...projects])
-    setShowAddModal(false)
-  }
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
+        {[...Array(2)].map((_, i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-5 w-40 mb-1" />
+              <Skeleton className="h-4 w-60" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4" />
+            </CardContent>
+            <CardFooter>
+              <Skeleton className="h-9 w-24 mr-2" />
+              <Skeleton className="h-9 w-24" />
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground mb-4">Failed to load projects</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Try Again
+        </Button>
+      </div>
+    )
+  }
+
+  if (projects.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">
+          {isCurrentUser
+            ? "You haven't added any projects yet. Visit a project page and click 'I Built This' to add your implementation."
+            : "This user hasn't added any projects yet."}
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {isCurrentUser && (
-        <div className="flex justify-end">
-          <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Project
-          </Button>
-        </div>
-      )}
+    <div className="space-y-4">
+      {projects.map((project) => (
+        <Card key={project.id}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Link href={`/projects/${project.projectSlug}`} className="font-medium hover:underline">
+                  {project.projectName || project.projectTitle}
+                </Link>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant={project.isPublic ? "default" : "outline"}>
+                    {project.isPublic ? (
+                      <>
+                        <Eye className="h-3 w-3 mr-1" /> Public
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="h-3 w-3 mr-1" /> Private
+                      </>
+                    )}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(project.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
 
-      {projects.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground mb-4">
-            {isCurrentUser ? "You haven't added any projects yet." : "No projects to display."}
-          </p>
-          {isCurrentUser && (
-            <Button onClick={() => setShowAddModal(true)} variant="outline">
-              Add Your First Project
-            </Button>
+              {isCurrentUser && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center space-x-2">
+                    {isUpdating[project.id || ""] ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Switch
+                          id={`visibility-${project.id}`}
+                          checked={project.isPublic}
+                          onCheckedChange={(checked) => project.id && handleVisibilityChange(project.id, checked)}
+                        />
+                        <Label htmlFor={`visibility-${project.id}`} className="sr-only">
+                          Public
+                        </Label>
+                      </>
+                    )}
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={() => setProjectToDelete(project.id || null)}
+                  >
+                    <Trash className="h-4 w-4" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+
+          {project.description && (
+            <CardContent className="py-2">
+              <p className="text-sm text-muted-foreground">{project.description}</p>
+            </CardContent>
           )}
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {projects.map((project) => (
-            <Card key={project.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{project.projectTitle || project.projectName}</CardTitle>
-                    <CardDescription className="mt-1">{project.description}</CardDescription>
-                  </div>
-                  {isCurrentUser && (
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleVisibility(project.id!, project.isPublic)}
-                        className="flex items-center gap-1"
-                      >
-                        {project.isPublic ? (
-                          <>
-                            <Eye className="h-4 w-4" />
-                            Public
-                          </>
-                        ) : (
-                          <>
-                            <EyeOff className="h-4 w-4" />
-                            Private
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteProject(project.id!)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {project.githubUrl && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={project.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2"
-                        >
-                          <Github className="h-4 w-4" />
-                          Code
-                        </a>
-                      </Button>
-                    )}
-                    {project.demoUrl && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={project.demoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Demo
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={project.isPublic ? "default" : "secondary"}>
-                      {project.isPublic ? "Public" : "Private"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
 
-      {showAddModal && (
-        <AddProjectModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onProjectAdded={handleProjectAdded}
-          userId={userId}
-        />
-      )}
+          <CardFooter className="pt-2">
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                  <Github className="h-4 w-4 mr-1" />
+                  View Code
+                </a>
+              </Button>
+
+              {project.demoUrl && (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Live Demo
+                  </a>
+                </Button>
+              )}
+            </div>
+          </CardFooter>
+        </Card>
+      ))}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your project showcase. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

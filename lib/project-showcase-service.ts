@@ -9,7 +9,7 @@ export interface UserProject {
   projectId: string
   projectSlug: string
   projectName: string
-  projectTitle: string
+  projectTitle?: string
   githubUrl: string
   demoUrl?: string
   description?: string
@@ -61,19 +61,31 @@ export class ProjectShowcaseService {
 
   static async getProjectShowcases(projectSlug: string): Promise<UserProject[]> {
     try {
+      console.log(`🔍 Fetching showcases for project: ${projectSlug}`)
+
+      // Modified query to avoid composite index requirement
+      // First get all public projects
       const userProjectsRef = collection(db, "user_projects")
-      const q = query(
-        userProjectsRef,
-        where("projectSlug", "==", projectSlug),
-        where("isPublic", "==", true),
-        orderBy("createdAt", "desc"),
-      )
+      const q = query(userProjectsRef, where("isPublic", "==", true))
 
       const querySnapshot = await getDocs(q)
-      const showcases = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as UserProject[]
+
+      // Then filter by projectSlug in memory and sort manually
+      const showcases = querySnapshot.docs
+        .map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as UserProject,
+        )
+        .filter((project) => project.projectSlug === projectSlug)
+        .sort((a, b) => {
+          // Sort by createdAt in descending order
+          const dateA = new Date(a.createdAt).getTime()
+          const dateB = new Date(b.createdAt).getTime()
+          return dateB - dateA
+        })
 
       console.log(`✅ Successfully fetched ${showcases.length} project showcases`)
       return showcases
