@@ -287,9 +287,6 @@ export default function QuizPage() {
               <CardTitle className="text-2xl">Quiz Completed!</CardTitle>
               <CardDescription>
                 You've completed the {quiz.title}
-                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                  🔥 Results saved to Firebase
-                </span>
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
