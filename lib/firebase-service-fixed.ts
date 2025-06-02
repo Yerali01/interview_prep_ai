@@ -191,7 +191,7 @@ export async function firebaseGetQuizBySlug(
     // Now fetch questions using multiple strategies
     try {
       console.log(`🔍 Fetching questions for quiz...`);
-      const questionsCollection = collection(db, "questions");
+      const questionsCollection = collection(db, "quiz_questions");
 
       // Strategy 1: Try quiz_slug
       console.log(`🔍 Strategy 1: Searching by quiz_slug = "${slug}"`);
@@ -295,7 +295,7 @@ export async function firebaseGetQuestionsByQuizSlug(
     console.log(
       `🔥 Fetching questions for quiz "${quizSlug}" from Firebase...`
     );
-    const questionsCollection = collection(db, "questions");
+    const questionsCollection = collection(db, "quiz_questions");
     const q = query(questionsCollection, where("quiz_slug", "==", quizSlug));
     const querySnapshot = await getDocs(q);
 
