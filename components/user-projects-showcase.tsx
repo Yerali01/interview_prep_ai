@@ -60,11 +60,10 @@ export function UserProjectsShowcase({
         setLoading(true);
         setError(null);
 
-        // Use the service to get user projects
-        const userProjects = await ProjectShowcaseService.getUserProjects(
+        const projectsArr = await ProjectShowcaseService.getUserProjects(
           userId
         );
-        setProjects(userProjects);
+        setProjects(projectsArr);
       } catch (err) {
         console.error("Error fetching user projects:", err);
         setError(
