@@ -1,12 +1,17 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,102 +21,131 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { ExternalLink, Eye, EyeOff, Github, Loader2, Trash } from "lucide-react"
-import Link from "next/link"
-import { ProjectShowcaseService, type UserProject } from "@/lib/project-showcase-service"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/alert-dialog";
+import {
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Github,
+  Loader2,
+  Trash,
+} from "lucide-react";
+import Link from "next/link";
+import {
+  ProjectShowcaseService,
+  type UserProject,
+} from "@/lib/project-showcase-service";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserProjectsShowcaseProps {
-  userId: string
-  isCurrentUser: boolean
+  userId: string;
+  isCurrentUser: boolean;
 }
 
-export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShowcaseProps) {
-  const [projects, setProjects] = useState<UserProject[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [projectToDelete, setProjectToDelete] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({})
-  const { toast } = useToast()
+export function UserProjectsShowcase({
+  userId,
+  isCurrentUser,
+}: UserProjectsShowcaseProps) {
+  const [projects, setProjects] = useState<UserProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         // Use the service to get user projects
-        const userProjects = await ProjectShowcaseService.getUserProjects(userId)
-        setProjects(userProjects)
+        const userProjects = await ProjectShowcaseService.getUserProjects(
+          userId
+        );
+        setProjects(userProjects);
       } catch (err) {
-        console.error("Error fetching user projects:", err)
-        setError(err instanceof Error ? err.message : "Failed to load projects")
+        console.error("Error fetching user projects:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load projects"
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (userId) {
-      fetchProjects()
+      fetchProjects();
     }
-  }, [userId])
 
-  const handleVisibilityChange = async (projectId: string, isPublic: boolean) => {
+    // Listen for custom event to refresh
+    const handler = () => fetchProjects();
+    window.addEventListener("userProjectAdded", handler);
+    return () => window.removeEventListener("userProjectAdded", handler);
+  }, [userId]);
+
+  const handleVisibilityChange = async (
+    projectId: string,
+    isPublic: boolean
+  ) => {
     try {
-      setIsUpdating((prev) => ({ ...prev, [projectId]: true }))
+      setIsUpdating((prev) => ({ ...prev, [projectId]: true }));
 
       // Use the service to update project visibility
-      await ProjectShowcaseService.updateProjectVisibility(projectId, isPublic)
+      await ProjectShowcaseService.updateProjectVisibility(projectId, isPublic);
 
       // Update local state
-      setProjects(projects.map((project) => (project.id === projectId ? { ...project, isPublic } : project)))
+      setProjects(
+        projects.map((project) =>
+          project.id === projectId ? { ...project, isPublic } : project
+        )
+      );
 
       toast({
         title: "Visibility updated",
         description: `Project is now ${isPublic ? "public" : "private"}`,
-      })
+      });
     } catch (err) {
-      console.error("Error updating project visibility:", err)
+      console.error("Error updating project visibility:", err);
       toast({
         title: "Update failed",
         description: "Failed to update project visibility",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsUpdating((prev) => ({ ...prev, [projectId]: false }))
+      setIsUpdating((prev) => ({ ...prev, [projectId]: false }));
     }
-  }
+  };
 
   const handleDeleteProject = async () => {
-    if (!projectToDelete) return
+    if (!projectToDelete) return;
 
     try {
-      setIsDeleting(true)
+      setIsDeleting(true);
 
       // Use the service to delete the project
-      await ProjectShowcaseService.deleteUserProject(projectToDelete)
+      await ProjectShowcaseService.deleteUserProject(projectToDelete);
 
       // Update local state
-      setProjects(projects.filter((project) => project.id !== projectToDelete))
+      setProjects(projects.filter((project) => project.id !== projectToDelete));
 
       toast({
         title: "Project deleted",
         description: "Your project has been removed",
-      })
+      });
     } catch (err) {
-      console.error("Error deleting project:", err)
+      console.error("Error deleting project:", err);
       toast({
         title: "Delete failed",
         description: "Failed to delete project",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
-      setProjectToDelete(null)
+      setIsDeleting(false);
+      setProjectToDelete(null);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -133,7 +167,7 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
           </Card>
         ))}
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -144,7 +178,7 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
           Try Again
         </Button>
       </div>
-    )
+    );
   }
 
   if (projects.length === 0) {
@@ -156,7 +190,7 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
             : "This user hasn't added any projects yet."}
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -166,7 +200,10 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
-                <Link href={`/projects/${project.projectSlug}`} className="font-medium hover:underline">
+                <Link
+                  href={`/projects/${project.projectSlug}`}
+                  className="font-medium hover:underline"
+                >
                   {project.projectName || project.projectTitle}
                 </Link>
                 <div className="flex items-center gap-2 mt-1">
@@ -197,9 +234,15 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
                         <Switch
                           id={`visibility-${project.id}`}
                           checked={project.isPublic}
-                          onCheckedChange={(checked) => project.id && handleVisibilityChange(project.id, checked)}
+                          onCheckedChange={(checked) =>
+                            project.id &&
+                            handleVisibilityChange(project.id, checked)
+                          }
                         />
-                        <Label htmlFor={`visibility-${project.id}`} className="sr-only">
+                        <Label
+                          htmlFor={`visibility-${project.id}`}
+                          className="sr-only"
+                        >
                           Public
                         </Label>
                       </>
@@ -222,14 +265,20 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
 
           {project.description && (
             <CardContent className="py-2">
-              <p className="text-sm text-muted-foreground">{project.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {project.description}
+              </p>
             </CardContent>
           )}
 
           <CardFooter className="pt-2">
             <div className="flex gap-2">
               <Button size="sm" variant="outline" asChild>
-                <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={project.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <Github className="h-4 w-4 mr-1" />
                   View Code
                 </a>
@@ -237,7 +286,11 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
 
               {project.demoUrl && (
                 <Button size="sm" variant="outline" asChild>
-                  <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={project.demoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Live Demo
                   </a>
@@ -249,12 +302,16 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
       ))}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+      <AlertDialog
+        open={!!projectToDelete}
+        onOpenChange={(open) => !open && setProjectToDelete(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete your project showcase. This action cannot be undone.
+              This will permanently delete your project showcase. This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -277,5 +334,5 @@ export function UserProjectsShowcase({ userId, isCurrentUser }: UserProjectsShow
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
