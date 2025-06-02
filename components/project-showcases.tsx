@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Github, User } from "lucide-react";
 import { getProjectShowcases } from "@/lib/project-showcase-service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface ProjectShowcase {
   id: string;
@@ -42,6 +43,7 @@ export function ProjectShowcases({
   const [showcases, setShowcases] = useState<ProjectShowcase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchShowcases = async () => {
@@ -51,6 +53,9 @@ export function ProjectShowcases({
 
         const result = await getProjectShowcases(projectSlug);
         console.log("[ProjectShowcases] getProjectShowcases result:", result);
+        if (user) {
+          console.log("[ProjectShowcases] Current userId:", user.id);
+        }
 
         if (result.error) {
           setError(result.error.message || "Unknown error");
@@ -142,7 +147,14 @@ export function ProjectShowcases({
 
       <div className="space-y-4">
         {showcases.map((showcase) => (
-          <Card key={showcase.id}>
+          <Card
+            key={showcase.id}
+            style={
+              user && showcase.userId === user.id
+                ? { border: "2px solid #4f46e5" }
+                : {}
+            }
+          >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -157,7 +169,12 @@ export function ProjectShowcases({
                   </Avatar>
                   <div>
                     <CardTitle className="text-base">
-                      {showcase.userName}
+                      {showcase.userName}{" "}
+                      {user && showcase.userId === user.id && (
+                        <Badge className="ml-2" variant="default">
+                          You
+                        </Badge>
+                      )}
                     </CardTitle>
                     <CardDescription>
                       {new Date(showcase.createdAt).toLocaleDateString()}
