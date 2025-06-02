@@ -51,18 +51,12 @@ export function ProjectShowcases({
         setLoading(true);
         setError(null);
 
-        const result = await getProjectShowcases(projectSlug);
-        console.log("[ProjectShowcases] getProjectShowcases result:", result);
-        if (user) {
-          console.log("[ProjectShowcases] Current userId:", user.id);
-        }
-
-        if (result.error) {
-          setError(result.error.message || "Unknown error");
-          throw new Error(result.error.message);
-        }
-
-        setShowcases(result.data || []);
+        const showcasesArr = await getProjectShowcases(projectSlug);
+        console.log(
+          "[ProjectShowcases] getProjectShowcases result:",
+          showcasesArr
+        );
+        setShowcases(showcasesArr);
       } catch (err) {
         console.error(
           "[ProjectShowcases] Error fetching project showcases:",
