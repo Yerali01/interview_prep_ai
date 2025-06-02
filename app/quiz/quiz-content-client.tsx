@@ -160,7 +160,6 @@ export default function QuizContentClient() {
                       </CardHeader>
                       <CardContent className="flex-grow">
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>Questions: {quiz.questionsCount || quiz.questions?.length || 0}</span>
                           <span>Level: {quiz.level}</span>
                         </div>
                       </CardContent>
