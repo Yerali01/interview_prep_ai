@@ -50,14 +50,19 @@ export function ProjectShowcases({
         setError(null);
 
         const result = await getProjectShowcases(projectSlug);
+        console.log("[ProjectShowcases] getProjectShowcases result:", result);
 
         if (result.error) {
+          setError(result.error.message || "Unknown error");
           throw new Error(result.error.message);
         }
 
         setShowcases(result.data || []);
       } catch (err) {
-        console.error("Error fetching project showcases:", err);
+        console.error(
+          "[ProjectShowcases] Error fetching project showcases:",
+          err
+        );
         setError(
           err instanceof Error ? err.message : "Failed to load showcases"
         );
@@ -105,6 +110,8 @@ export function ProjectShowcases({
       <div className="text-center py-8">
         <p className="text-muted-foreground mb-4">
           Failed to load community implementations
+          <br />
+          <span style={{ color: "red" }}>{error}</span>
         </p>
         <Button variant="outline" onClick={() => window.location.reload()}>
           Try Again
