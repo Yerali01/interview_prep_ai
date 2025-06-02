@@ -183,7 +183,7 @@ export async function firebaseGetQuizBySlug(slug: string): Promise<Quiz | null> 
     // Now fetch questions using multiple strategies
     try {
       console.log(`🔍 Fetching questions for quiz...`)
-      const questionsCollection = collection(db, "questions")
+      const questionsCollection = collection(db, "quiz_questions")
 
       // Strategy 1: Try quiz_slug
       console.log(`🔍 Strategy 1: Searching by quiz_slug = "${slug}"`)
