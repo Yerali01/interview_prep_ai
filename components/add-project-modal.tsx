@@ -72,11 +72,10 @@ export function AddProjectModal({
     try {
       setLoading(true);
 
-      // Log the payload
-      console.log("[AddProjectModal] Submitting user project:", {
+      // Build user project data, omitting undefined fields
+      const userProjectData: any = {
         userId: user.id,
         userName: user.displayName || user.email || "Anonymous",
-        userAvatar: user.photoURL || undefined,
         projectId,
         projectSlug,
         projectName,
@@ -84,20 +83,10 @@ export function AddProjectModal({
         demoUrl: formData.demoUrl.trim() || undefined,
         description: formData.description.trim() || undefined,
         isPublic: formData.isPublic,
-      });
+      };
+      if (user.photoURL) userProjectData.userAvatar = user.photoURL;
 
-      const result = await addUserProject({
-        userId: user.id,
-        userName: user.displayName || user.email || "Anonymous",
-        userAvatar: user.photoURL || undefined,
-        projectId,
-        projectSlug,
-        projectName,
-        githubUrl: formData.githubUrl.trim(),
-        demoUrl: formData.demoUrl.trim() || undefined,
-        description: formData.description.trim() || undefined,
-        isPublic: formData.isPublic,
-      });
+      const result = await addUserProject(userProjectData);
 
       // Log the result
       console.log("[AddProjectModal] addUserProject result:", result);
