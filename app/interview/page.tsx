@@ -1,159 +1,237 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { type AIMessage, getAIResponse, useSpeechRecognition, INTERVIEW_SYSTEM_PROMPT } from "@/lib/ai-utils"
-import { Mic, MicOff, Send, Bot, Loader2, Volume2 } from "lucide-react"
-import { useAuth } from "@/components/auth/auth-provider"
-import { useToast } from "@/hooks/use-toast"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { useRouter } from "next/navigation"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  type AIMessage,
+  getAIResponse,
+  useSpeechRecognition,
+  INTERVIEW_SYSTEM_PROMPT,
+} from "@/lib/ai-utils";
+import {
+  Mic,
+  MicOff,
+  Send,
+  Bot as BotIcon,
+  Loader2,
+  Volume2,
+} from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useToast } from "@/hooks/use-toast";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
 
 // Mark this page as dynamic to prevent static generation
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
-type InterviewLevel = "junior" | "middle" | "senior"
-type InterviewMode = "text" | "speech"
+type InterviewLevel = "junior" | "middle" | "senior";
+type InterviewMode = "text" | "speech";
 
 export default function InterviewPage() {
-  const [messages, setMessages] = useState<AIMessage[]>([])
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isStarted, setIsStarted] = useState(false)
-  const [isFinished, setIsFinished] = useState(false)
-  const [questionCount, setQuestionCount] = useState(0)
-  const [level, setLevel] = useState<InterviewLevel>("junior")
-  const [mode, setMode] = useState<InterviewMode>("text")
-  const [assessment, setAssessment] = useState<string | null>(null)
-  const { isListening, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition()
-  const { user } = useAuth()
-  const { toast } = useToast()
-  const router = useRouter()
+  const [messages, setMessages] = useState<AIMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [level, setLevel] = useState<InterviewLevel>("junior");
+  const [mode, setMode] = useState<InterviewMode>("text");
+  const [assessment, setAssessment] = useState<string | null>(null);
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
 
   // Update input when transcript changes
   useEffect(() => {
     if (transcript) {
-      setInput(transcript)
+      setInput(transcript);
     }
-  }, [transcript])
+  }, [transcript]);
 
   // Start the interview
   const startInterview = async () => {
     if (mode === "speech") {
       // Redirect to speech interview page
-      router.push(`/interview/speech?level=${level}`)
-      return
+      router.push(`/interview/speech?level=${level}`);
+      return;
     }
 
-    setIsLoading(true)
-    setIsStarted(true)
-    setMessages([])
-    setQuestionCount(0)
-    setIsFinished(false)
-    setAssessment(null)
+    setIsLoading(true);
+    setIsStarted(true);
+    setMessages([]);
+    setQuestionCount(0);
+    setIsFinished(false);
+    setAssessment(null);
 
     // Initialize with system message
     const systemMessage: AIMessage = {
       role: "system",
       content: `${INTERVIEW_SYSTEM_PROMPT}\n\nYou are conducting a ${level} level Flutter interview. Start by introducing yourself briefly and asking the first question about Flutter or Dart appropriate for a ${level} level developer.`,
-    }
+    };
 
     try {
-      const initialMessages: AIMessage[] = [systemMessage]
-      const response = await getAIResponse(initialMessages)
+      const initialMessages: AIMessage[] = [systemMessage];
+      const response = await getAIResponse(initialMessages);
 
-      setMessages([...initialMessages, { role: "assistant", content: response }])
+      setMessages([
+        ...initialMessages,
+        { role: "assistant", content: response },
+      ]);
 
-      setQuestionCount(1)
+      setQuestionCount(1);
     } catch (error) {
-      console.error("Error starting interview:", error)
+      console.error("Error starting interview:", error);
       toast({
         title: "Error starting interview",
-        description: "There was an error starting the interview. Please try again.",
+        description:
+          "There was an error starting the interview. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Send a message
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
+    if (!input.trim() || isLoading) return;
 
-    const userMessage: AIMessage = { role: "user", content: input }
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
-    resetTranscript()
-    setIsLoading(true)
+    const userMessage: AIMessage = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    resetTranscript();
+    setIsLoading(true);
 
     try {
       // Prepare context for the AI
-      let promptContext = ""
+      let promptContext = "";
 
       // If we're at question 10, prepare for final assessment
       if (questionCount >= 10) {
-        promptContext = `This is the final question. After the user answers, provide a comprehensive assessment of their Flutter knowledge based on all their answers. Evaluate their strengths, weaknesses, and provide specific recommendations for improvement. Be honest but constructive.`
+        promptContext = `This is the final question. After the user answers, provide a comprehensive assessment of their Flutter knowledge based on all their answers. Evaluate their strengths, weaknesses, and provide specific recommendations for improvement. Be honest but constructive.`;
       } else {
-        promptContext = `This is question #${questionCount} out of 10. After acknowledging the user's answer, ask the next question about Flutter or Dart appropriate for a ${level} level developer.`
+        promptContext = `This is question #${questionCount} out of 10. After acknowledging the user's answer, ask the next question about Flutter or Dart appropriate for a ${level} level developer.`;
       }
 
       // Add the context to the system message
       const contextMessage: AIMessage = {
         role: "system",
         content: promptContext,
-      }
+      };
 
       // Get all messages including the system context
       const allMessages = [
         ...messages.filter((m) => m.role !== "system"), // Remove any previous system messages
         contextMessage,
         userMessage,
-      ]
+      ];
 
-      const response = await getAIResponse(allMessages)
+      const response = await getAIResponse(allMessages);
 
       // Add the assistant's response
-      setMessages((prev) => [...prev, { role: "assistant", content: response }])
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: response },
+      ]);
 
       // Increment question count
       if (questionCount < 10) {
-        setQuestionCount(questionCount + 1)
+        setQuestionCount(questionCount + 1);
       } else {
-        setIsFinished(true)
-        setAssessment(response)
+        setIsFinished(true);
+        setAssessment(response);
       }
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
-        description: "There was an error sending your message. Please try again.",
+        description:
+          "There was an error sending your message. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Handle Enter key press
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
+      e.preventDefault();
+      sendMessage();
     }
-  }
+  };
 
   // Auto-scroll to the bottom of the messages container
   useEffect(() => {
-    const messagesContainer = document.getElementById("messages-container")
+    const messagesContainer = document.getElementById("messages-container");
     if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-  }, [messages])
+  }, [messages]);
+
+  if (!user) {
+    return (
+      <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>Sign In Required</CardTitle>
+            <CardDescription>
+              You must be signed in to access the AI Interview feature.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <a href="/auth/sign-in">Sign In</a>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+  if (!user.isPaid) {
+    return (
+      <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>Upgrade Required</CardTitle>
+            <CardDescription>
+              The AI Interview feature is available for paid users only.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <a
+                href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Buy Access
+              </a>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-4 h-[calc(100vh-4rem)]">
@@ -162,13 +240,15 @@ export default function InterviewPage() {
           <CardHeader>
             <CardTitle>Start a Flutter Technical Interview</CardTitle>
             <CardDescription>
-              Practice your Flutter interview skills with our AI interviewer. Choose your experience level and interview
-              mode below.
+              Practice your Flutter interview skills with our AI interviewer.
+              Choose your experience level and interview mode below.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Select your experience level:</h3>
+              <h3 className="text-lg font-medium mb-3">
+                Select your experience level:
+              </h3>
               <RadioGroup
                 value={level}
                 onValueChange={(value) => setLevel(value as InterviewLevel)}
@@ -196,7 +276,9 @@ export default function InterviewPage() {
             </div>
 
             <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Select interview mode:</h3>
+              <h3 className="text-lg font-medium mb-3">
+                Select interview mode:
+              </h3>
               <RadioGroup
                 value={mode}
                 onValueChange={(value) => setMode(value as InterviewMode)}
@@ -238,7 +320,11 @@ export default function InterviewPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={startInterview} disabled={isLoading} className="w-full">
+            <Button
+              onClick={startInterview}
+              disabled={isLoading}
+              className="w-full"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -246,7 +332,11 @@ export default function InterviewPage() {
                 </>
               ) : (
                 <>
-                  {mode === "speech" ? <Volume2 className="mr-2 h-4 w-4" /> : <Bot className="mr-2 h-4 w-4" />}
+                  {mode === "speech" ? (
+                    <Volume2 className="mr-2 h-4 w-4" />
+                  ) : (
+                    <BotIcon className="mr-2 h-4 w-4" />
+                  )}
                   Start {mode === "speech" ? "Speech" : "Text"} Interview
                 </>
               )}
@@ -256,15 +346,23 @@ export default function InterviewPage() {
       ) : (
         <div className="flex flex-col h-[calc(100vh-4rem)]">
           {/* Messages container - with auto-scroll */}
-          <div id="messages-container" className="flex-grow overflow-y-auto bg-background">
+          <div
+            id="messages-container"
+            className="flex-grow overflow-y-auto bg-background"
+          >
             {messages
               .filter((m) => m.role !== "system")
               .map((message, index) => (
-                <div key={index} className={`p-3 ${message.role === "assistant" ? "bg-muted" : "bg-primary/10"}`}>
+                <div
+                  key={index}
+                  className={`p-3 ${
+                    message.role === "assistant" ? "bg-muted" : "bg-primary/10"
+                  }`}
+                >
                   <div className="flex items-start max-w-4xl mx-auto">
                     <div className="mr-2 mt-0.5">
                       {message.role === "assistant" ? (
-                        <Bot className="h-5 w-5 text-primary" />
+                        <BotIcon className="h-5 w-5 text-primary" />
                       ) : (
                         <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs">
                           U
@@ -272,7 +370,9 @@ export default function InterviewPage() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                      <div className="text-sm whitespace-pre-wrap">
+                        {message.content}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -298,9 +398,17 @@ export default function InterviewPage() {
                   onClick={isListening ? stopListening : startListening}
                   disabled={isLoading}
                 >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isListening ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
                 </Button>
-                <Button type="button" onClick={sendMessage} disabled={!input.trim() || isLoading}>
+                <Button
+                  type="button"
+                  onClick={sendMessage}
+                  disabled={!input.trim() || isLoading}
+                >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -319,5 +427,5 @@ export default function InterviewPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

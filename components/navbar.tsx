@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   BookOpen,
   Brain,
@@ -15,12 +15,12 @@ import {
   LogOut,
   User,
   ChevronDown,
-  Bot,
+  Bot as BotIcon,
   Code,
-} from "lucide-react"
-import { useState, useEffect } from "react"
-import { cn } from "@/lib/utils"
-import { useAuth } from "./auth/auth-provider"
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "./auth/auth-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,20 +28,20 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { DonationButton } from "@/components/donation-button"
-import ThemeToggle from "@/components/theme-toggle"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DonationButton } from "@/components/donation-button";
+import ThemeToggle from "@/components/theme-toggle";
 
 export default function Navbar() {
-  const pathname = usePathname()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const { user, signOut } = useAuth()
+  const pathname = usePathname();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   // Main navigation items
   const mainNavItems = [
@@ -66,7 +66,7 @@ export default function Navbar() {
     {
       href: "/interview",
       label: "AI Interview",
-      icon: <Bot className="h-4 w-4 mr-2" />,
+      icon: <BotIcon className="h-4 w-4 mr-2" />,
       active: pathname === "/interview",
       highlight: true,
     },
@@ -76,7 +76,7 @@ export default function Navbar() {
       icon: <FileQuestion className="h-4 w-4 mr-2" />,
       active: pathname === "/interview-prep",
     },
-  ]
+  ];
 
   // Items for the "Resources" dropdown
   const resourceItems = [
@@ -92,21 +92,21 @@ export default function Navbar() {
       icon: <ExternalLink className="h-4 w-4 mr-2" />,
       active: pathname === "/resources",
     },
-  ]
+  ];
 
   const handleSignOut = async () => {
     try {
-      await signOut()
-      setIsMenuOpen(false)
+      await signOut();
+      setIsMenuOpen(false);
     } catch (error) {
-      console.error("Sign out error:", error)
+      console.error("Sign out error:", error);
     }
-  }
+  };
 
   const getUserInitials = () => {
-    if (!user || !user.email) return "U"
-    return user.email.substring(0, 1).toUpperCase()
-  }
+    if (!user || !user.email) return "U";
+    return user.email.substring(0, 1).toUpperCase();
+  };
 
   // Don't render auth-dependent content until mounted
   if (!mounted) {
@@ -123,7 +123,7 @@ export default function Navbar() {
           </div>
         </div>
       </header>
-    )
+    );
   }
 
   return (
@@ -144,8 +144,10 @@ export default function Navbar() {
               href={item.href}
               className={cn(
                 "text-sm font-medium transition-colors flex items-center",
-                item.active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-                item.highlight && "relative",
+                item.active
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+                item.highlight && "relative"
               )}
             >
               {item.icon}
@@ -169,7 +171,7 @@ export default function Navbar() {
                   "text-sm font-medium transition-colors flex items-center",
                   resourceItems.some((item) => item.active)
                     ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <BookOpen className="h-4 w-4 mr-2" />
@@ -196,7 +198,11 @@ export default function Navbar() {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full"
+                    >
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>{getUserInitials()}</AvatarFallback>
                       </Avatar>
@@ -225,6 +231,17 @@ export default function Navbar() {
                   </Link>
                 </Button>
               )}
+              {user && !user.isPaid && (
+                <Button asChild variant="outline" className="ml-2">
+                  <a
+                    href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Buy Pro
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
         </nav>
@@ -232,8 +249,16 @@ export default function Navbar() {
         {/* Mobile menu button */}
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
           </Button>
         </div>
       </div>
@@ -253,7 +278,7 @@ export default function Navbar() {
                   item.active
                     ? "text-foreground bg-accent"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
-                  item.highlight && "relative",
+                  item.highlight && "relative"
                 )}
               >
                 {item.icon}
@@ -269,7 +294,9 @@ export default function Navbar() {
 
             {/* Resources section */}
             <div className="px-2 pt-4 pb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resources</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Resources
+              </p>
             </div>
             {resourceItems.map((item) => (
               <Link
@@ -280,7 +307,7 @@ export default function Navbar() {
                   "text-sm font-medium transition-colors flex items-center p-3 rounded-md",
                   item.active
                     ? "text-foreground bg-accent"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 )}
               >
                 {item.icon}
@@ -290,7 +317,9 @@ export default function Navbar() {
 
             {/* Account section */}
             <div className="px-2 pt-4 pb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Account
+              </p>
             </div>
 
             {user ? (
@@ -330,5 +359,5 @@ export default function Navbar() {
         </div>
       )}
     </header>
-  )
+  );
 }
