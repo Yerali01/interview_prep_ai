@@ -384,7 +384,7 @@ export async function saveQuizResult(
   score: number,
   totalQuestions: number
 ) {
-  const { data, error } = await supabase.from("user_quiz_results").insert([
+  const { data, error } = await supabase.from("quiz_results").insert([
     {
       user_id: userId,
       quiz_id: quizId,
@@ -404,7 +404,7 @@ export async function saveQuizResult(
 
 export async function getUserQuizResults(userId: string) {
   const { data, error } = await supabase
-    .from("user_quiz_results")
+    .from("quiz_results")
     .select("*, quizzes(*)")
     .eq("user_id", userId)
     .order("completed_at", { ascending: false });
