@@ -1,11 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import * as React from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface User {
   id: string;
   email: string | null;
   name: string | null;
+  display_name?: string | null;
+  isPaid?: boolean;
 }
 //comment
 interface AuthContextType {
@@ -13,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: "1",
         email,
         name: email.split("@")[0],
+        display_name: email.split("@")[0],
+        isPaid: false,
       });
     } catch (error) {
       console.error("Sign in failed:", error);
@@ -60,8 +68,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Refresh user data from Firestore
+  const refreshUser = async () => {
+    if (!user || !user.id) return;
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.id));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUser((prev: User | null) => ({
+          ...prev,
+          ...data,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ user, loading, signIn, signOut, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
