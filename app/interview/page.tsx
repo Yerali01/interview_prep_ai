@@ -209,26 +209,29 @@ export default function InterviewPage() {
   }
   if (!user.isPaid) {
     return (
-      <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle>Upgrade Required</CardTitle>
-            <CardDescription>
-              The AI Interview feature is available for paid users only.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button asChild>
-              <a
-                href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Buy Access
-              </a>
-            </Button>
-          </CardFooter>
-        </Card>
+      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
+        <div className="relative z-10">
+          <Card className="max-w-md w-full shadow-2xl">
+            <CardHeader>
+              <CardTitle>Upgrade Required</CardTitle>
+              <CardDescription>
+                The AI Interview feature is available for paid users only.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button asChild>
+                <a
+                  href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Buy Access
+                </a>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     );
   }
