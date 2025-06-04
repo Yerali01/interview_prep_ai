@@ -8,7 +8,7 @@ import {
   updateDoc,
   doc,
 } from "firebase/firestore";
-//ikki
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
