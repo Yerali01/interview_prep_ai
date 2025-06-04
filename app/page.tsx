@@ -29,22 +29,6 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const { refreshUser, user } = useAuth();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (searchParams.get("justPaid") === "1") {
-      refreshUser().then(() => {
-        if (user && user.isPaid) {
-          toast({
-            title: "Premium Activated!",
-            description: "Your premium access is now active.",
-            variant: "success",
-          });
-        }
-      });
-    }
-  }, [searchParams, refreshUser]);
 
   // Find a senior-level question that is interesting
   const seniorQuestion = interviewQuestions.find(

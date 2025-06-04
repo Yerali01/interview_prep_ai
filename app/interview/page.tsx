@@ -209,19 +209,6 @@ export default function InterviewPage() {
     );
   }
   if (!user.isPaid) {
-    const handleCheckAgain = async () => {
-      setRefreshing(true);
-      await refreshUser();
-      setRefreshing(false);
-      if (!user.isPaid) {
-        toast({
-          title: "Still locked",
-          description:
-            "Your payment hasn't been processed yet. Please wait a moment and try again.",
-          variant: "destructive",
-        });
-      }
-    };
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
         <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
@@ -242,16 +229,6 @@ export default function InterviewPage() {
                 >
                   Buy Access
                 </a>
-              </Button>
-              <Button
-                onClick={handleCheckAgain}
-                disabled={refreshing}
-                variant="outline"
-              >
-                {refreshing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                I've just paid, check again
               </Button>
             </CardFooter>
           </Card>
