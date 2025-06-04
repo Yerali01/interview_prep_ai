@@ -382,6 +382,13 @@ export default function SpeechInterviewPage() {
                 and you're in a quiet environment.
               </p>
             </div>
+            <Button
+              onClick={() => speakText("Hello, this is a new voice")}
+              variant="outline"
+              className="mb-2"
+            >
+              Test Voice
+            </Button>
             <Button onClick={startInterview} size="lg" className="px-8">
               <Volume2 className="mr-2 h-5 w-5" />
               Start Speech Interview
