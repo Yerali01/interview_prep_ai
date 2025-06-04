@@ -189,6 +189,13 @@ export default function InterviewPage() {
     }
   }, [messages]);
 
+  // Add cleanup to stop speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      stopListening();
+    };
+  }, [stopListening]);
+
   if (!user) {
     return (
       <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
