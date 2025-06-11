@@ -1,161 +1,193 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { firebaseGetQuizBySlug, firebaseSaveQuizResult, type QuizQuestion } from "@/lib/firebase-service-fixed"
-import { useAuth } from "@/components/auth/auth-provider"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, ArrowRight, Check, AlertCircle } from "lucide-react"
-import Link from "next/link"
-import { Skeleton } from "@/components/ui/skeleton"
-import { motion } from "framer-motion"
-import { useToast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  firebaseGetQuizBySlug,
+  firebaseSaveQuizResult,
+  type QuizQuestion,
+} from "@/lib/firebase-service-fixed";
+import { useAuth } from "@/components/auth/auth-provider";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, ArrowRight, Check, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 export default function QuizPage() {
-  const params = useParams()
-  const router = useRouter()
-  const { toast } = useToast()
-  const { user } = useAuth()
-  const slug = params?.slug as string
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const slug = params?.slug as string;
 
-  const [quiz, setQuiz] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [quiz, setQuiz] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({})
-  const [quizCompleted, setQuizCompleted] = useState(false)
-  const [score, setScore] = useState(0)
-  const [correctAnswersCount, setCorrectAnswersCount] = useState(0)
-  const [showExplanation, setShowExplanation] = useState(false)
-  const [savingResult, setSavingResult] = useState(false)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<number, string>
+  >({});
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [savingResult, setSavingResult] = useState(false);
 
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
         if (!slug) {
-          setError("Quiz not found")
-          setLoading(false)
-          return
+          setError("Quiz not found");
+          setLoading(false);
+          return;
         }
 
-        console.log("🔥 Fetching quiz from Firebase with slug:", slug)
-        const quizData = await firebaseGetQuizBySlug(slug)
-        console.log("🔥 Firebase quiz data received:", quizData)
+        console.log("🔥 Fetching quiz from Firebase with slug:", slug);
+        const quizData = await firebaseGetQuizBySlug(slug);
+        console.log("🔥 Firebase quiz data received:", quizData);
 
         if (!quizData) {
-          setError("Quiz not found in Firebase")
+          setError("Quiz not found in Firebase");
         } else if (!quizData.questions || quizData.questions.length === 0) {
-          setError("This quiz has no questions yet")
+          setError("This quiz has no questions yet");
         } else {
-          setQuiz(quizData)
+          setQuiz(quizData);
         }
       } catch (error) {
-        console.error("❌ Error fetching quiz from Firebase:", error)
-        setError("Failed to load quiz from Firebase")
+        console.error("❌ Error fetching quiz from Firebase:", error);
+        setError("Failed to load quiz from Firebase");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchQuiz()
-  }, [slug])
+    fetchQuiz();
+  }, [slug]);
 
   const handleAnswerSelect = (answer: string) => {
-    const currentQuestion = quiz.questions[currentQuestionIndex]
-    const wasCorrectBefore = selectedAnswers[currentQuestionIndex] === currentQuestion.correct_answer
-    const isCorrectNow = answer === currentQuestion.correct_answer
+    const currentQuestion = quiz.questions[currentQuestionIndex];
+    const wasCorrectBefore =
+      selectedAnswers[currentQuestionIndex] === currentQuestion.correct_answer;
+    const isCorrectNow = answer === currentQuestion.correct_answer;
 
     setSelectedAnswers({
       ...selectedAnswers,
       [currentQuestionIndex]: answer,
-    })
+    });
 
     // Update correctAnswersCount based on the change
     setCorrectAnswersCount((prevCount) => {
       if (wasCorrectBefore && !isCorrectNow) {
-        return prevCount - 1 // Was correct, now wrong
+        return prevCount - 1; // Was correct, now wrong
       } else if (!wasCorrectBefore && isCorrectNow) {
-        return prevCount + 1 // Was wrong, now correct
+        return prevCount + 1; // Was wrong, now correct
       }
-      return prevCount // No change in correctness
-    })
-  }
+      return prevCount; // No change in correctness
+    });
+  };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      setShowExplanation(false)
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setShowExplanation(false);
+      // Clear answer for the next question
+      setSelectedAnswers((prev) => {
+        const updated = { ...prev };
+        delete updated[currentQuestionIndex + 1];
+        return updated;
+      });
     } else {
       // Calculate final score based on all selected answers
-      const finalCorrectCount = quiz.questions.reduce((count: number, question: QuizQuestion, index: number) => {
-        return selectedAnswers[index] === question.correct_answer ? count + 1 : count
-      }, 0)
+      const finalCorrectCount = quiz.questions.reduce(
+        (count: number, question: QuizQuestion, index: number) => {
+          return selectedAnswers[index] === question.correct_answer
+            ? count + 1
+            : count;
+        },
+        0
+      );
 
-      const finalScore = Math.round((finalCorrectCount / quiz.questions.length) * 100)
-      setCorrectAnswersCount(finalCorrectCount)
-      setScore(finalScore)
-      setQuizCompleted(true)
+      const finalScore = Math.round(
+        (finalCorrectCount / quiz.questions.length) * 100
+      );
+      setCorrectAnswersCount(finalCorrectCount);
+      setScore(finalScore);
+      setQuizCompleted(true);
 
       // Try to save result if user is logged in
-      saveResult(finalScore)
+      saveResult(finalScore);
     }
-  }
+  };
 
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1)
-      setShowExplanation(false)
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setShowExplanation(false);
     }
-  }
+  };
 
   const saveResult = async (finalScore: number) => {
     try {
-      setSavingResult(true)
+      setSavingResult(true);
 
       if (user) {
-        console.log("🔥 Saving quiz result to Firebase...")
-        await firebaseSaveQuizResult(user.id, quiz.id, finalScore, quiz.questions.length)
+        console.log("🔥 Saving quiz result to Firebase...");
+        await firebaseSaveQuizResult(
+          user.id,
+          quiz.id,
+          finalScore,
+          quiz.questions.length
+        );
 
         toast({
           title: "Quiz result saved",
           description: "Your score has been saved to Firebase.",
-        })
+        });
       }
     } catch (error) {
-      console.error("❌ Error saving quiz result to Firebase:", error)
+      console.error("❌ Error saving quiz result to Firebase:", error);
       toast({
         title: "Error saving result",
         description: "There was a problem saving your quiz result to Firebase.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setSavingResult(false)
+      setSavingResult(false);
     }
-  }
+  };
 
   const handleRetakeQuiz = () => {
-    setCurrentQuestionIndex(0)
-    setSelectedAnswers({})
-    setQuizCompleted(false)
-    setShowExplanation(false)
-    setCorrectAnswersCount(0)
-  }
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers({});
+    setQuizCompleted(false);
+    setShowExplanation(false);
+    setCorrectAnswersCount(0);
+  };
 
   const handleBackToQuizzes = () => {
-    router.push("/quiz")
-  }
+    router.push("/quiz");
+  };
 
   const handleShowExplanation = () => {
-    setShowExplanation(true)
-  }
+    setShowExplanation(true);
+  };
 
   if (loading) {
-    return <QuizSkeleton />
+    return <QuizSkeleton />;
   }
 
   if (error || !quiz) {
@@ -171,20 +203,23 @@ export default function QuizPage() {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Quiz Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The quiz you're looking for doesn't exist in Firebase or has been moved."}
+            {error ||
+              "The quiz you're looking for doesn't exist in Firebase or has been moved."}
           </p>
           <Button asChild>
             <Link href="/quiz">Browse All Quizzes</Link>
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
-  const currentQuestion = quiz.questions[currentQuestionIndex]
-  const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined
-  const isCorrect = isAnswered && selectedAnswers[currentQuestionIndex] === currentQuestion.correct_answer
-  const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
+  const isCorrect =
+    isAnswered &&
+    selectedAnswers[currentQuestionIndex] === currentQuestion.correct_answer;
+  const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -196,7 +231,11 @@ export default function QuizPage() {
         </Button>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">{quiz.title}</h1>
           <p className="text-xl text-muted-foreground">{quiz.description}</p>
@@ -216,7 +255,9 @@ export default function QuizPage() {
               <Progress value={progress} className="h-2" />
             </CardHeader>
             <CardContent className="pt-6">
-              <h2 className="text-xl font-semibold mb-6">{currentQuestion.question}</h2>
+              <h2 className="text-xl font-semibold mb-6">
+                {currentQuestion.question}
+              </h2>
 
               <RadioGroup
                 value={selectedAnswers[currentQuestionIndex]}
@@ -231,22 +272,28 @@ export default function QuizPage() {
                       showExplanation && key === currentQuestion.correct_answer
                         ? "border-green-500 bg-green-50 dark:bg-green-900/20"
                         : showExplanation &&
-                            key === selectedAnswers[currentQuestionIndex] &&
-                            key !== currentQuestion.correct_answer
-                          ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                          : "border-gray-200 dark:border-gray-800"
+                          key === selectedAnswers[currentQuestionIndex] &&
+                          key !== currentQuestion.correct_answer
+                        ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                        : "border-gray-200 dark:border-gray-800"
                     }`}
                   >
                     <RadioGroupItem value={key} id={`option-${key}`} />
-                    <label htmlFor={`option-${key}`} className="flex-grow text-base cursor-pointer">
+                    <label
+                      htmlFor={`option-${key}`}
+                      className="flex-grow text-base cursor-pointer"
+                    >
                       {value as string}
                     </label>
-                    {showExplanation && key === currentQuestion.correct_answer && (
-                      <Check className="h-5 w-5 text-green-500" />
-                    )}
+                    {showExplanation &&
+                      key === currentQuestion.correct_answer && (
+                        <Check className="h-5 w-5 text-green-500" />
+                      )}
                     {showExplanation &&
                       key === selectedAnswers[currentQuestionIndex] &&
-                      key !== currentQuestion.correct_answer && <AlertCircle className="h-5 w-5 text-red-500" />}
+                      key !== currentQuestion.correct_answer && (
+                        <AlertCircle className="h-5 w-5 text-red-500" />
+                      )}
                   </div>
                 ))}
               </RadioGroup>
@@ -259,17 +306,33 @@ export default function QuizPage() {
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+              <Button
+                variant="outline"
+                onClick={handlePreviousQuestion}
+                disabled={currentQuestionIndex === 0}
+              >
                 <ArrowLeft className="mr-2 h-4 w-4" /> Previous
               </Button>
 
               <div className="flex gap-2">
                 {!showExplanation && (
-                  <Button variant="secondary" onClick={handleShowExplanation} disabled={!isAnswered}>
+                  <Button
+                    variant={isAnswered ? "primary" : "secondary"}
+                    className={
+                      isAnswered
+                        ? "ring-2 ring-primary ring-offset-2 shadow-lg"
+                        : ""
+                    }
+                    onClick={handleShowExplanation}
+                    disabled={!isAnswered}
+                  >
                     Answer
                   </Button>
                 )}
-                <Button onClick={handleNextQuestion} disabled={!isAnswered || !showExplanation}>
+                <Button
+                  onClick={handleNextQuestion}
+                  disabled={!isAnswered || !showExplanation}
+                >
                   {currentQuestionIndex < quiz.questions.length - 1 ? (
                     <>
                       Next <ArrowRight className="ml-2 h-4 w-4" />
@@ -293,7 +356,8 @@ export default function QuizPage() {
               <div className="text-center mb-6">
                 <div className="text-5xl font-bold mb-2">{score}%</div>
                 <p className="text-muted-foreground">
-                  You answered {correctAnswersCount} out of {quiz.questions.length} questions correctly
+                  You answered {correctAnswersCount} out of{" "}
+                  {quiz.questions.length} questions correctly
                 </p>
               </div>
 
@@ -313,21 +377,32 @@ export default function QuizPage() {
                             <span className="font-semibold">Your answer: </span>
                             <span
                               className={
-                                selectedAnswers[index] === question.correct_answer ? "text-green-600" : "text-red-600"
+                                selectedAnswers[index] ===
+                                question.correct_answer
+                                  ? "text-green-600"
+                                  : "text-red-600"
                               }
                             >
-                              {question.options[selectedAnswers[index]] || "Not answered"}
+                              {question.options[selectedAnswers[index]] ||
+                                "Not answered"}
                             </span>
                           </div>
-                          {selectedAnswers[index] !== question.correct_answer && (
+                          {selectedAnswers[index] !==
+                            question.correct_answer && (
                             <div className="text-sm">
-                              <span className="font-semibold">Correct answer: </span>
-                              <span className="text-green-600">{question.options[question.correct_answer]}</span>
+                              <span className="font-semibold">
+                                Correct answer:{" "}
+                              </span>
+                              <span className="text-green-600">
+                                {question.options[question.correct_answer]}
+                              </span>
                             </div>
                           )}
                         </div>
                         <div className="mt-2">
-                          <h3 className="font-semibold text-sm">Explanation:</h3>
+                          <h3 className="font-semibold text-sm">
+                            Explanation:
+                          </h3>
                           <p className="text-sm">{question.explanation}</p>
                         </div>
                       </div>
@@ -346,7 +421,7 @@ export default function QuizPage() {
         )}
       </motion.div>
     </div>
-  )
+  );
 }
 
 function QuizSkeleton() {
@@ -385,18 +460,18 @@ function QuizSkeleton() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }
 
 function getLevelColor(level: string) {
   switch (level) {
     case "junior":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
     case "middle":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
     case "senior":
-      return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
     default:
-      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
   }
 }

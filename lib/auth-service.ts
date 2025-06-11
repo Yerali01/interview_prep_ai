@@ -23,6 +23,7 @@ export interface AuthUser {
   github_username?: string | null;
   github_avatar?: string | null;
   isPaid?: boolean;
+  interviewAttempts?: number;
 }
 
 export interface AuthResult {
@@ -45,6 +46,7 @@ function convertFirebaseUser(
     github_username: firestoreData?.github_username,
     github_avatar: firestoreData?.github_avatar,
     isPaid: firestoreData?.isPaid ?? false,
+    interviewAttempts: firestoreData?.interviewAttempts ?? 0,
   };
 }
 
@@ -121,6 +123,7 @@ export async function signUpWithEmail(
         display_name: user.displayName,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
+        interviewAttempts: 0,
       });
       console.log("✅ User profile created in Firestore");
     } catch (firestoreError) {

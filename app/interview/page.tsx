@@ -22,15 +22,18 @@ import {
   Mic,
   MicOff,
   Send,
-  Bot as BotIcon,
+  Bolt,
   Loader2,
   Volume2,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // Mark this page as dynamic to prevent static generation
 export const dynamic = "force-dynamic";
@@ -59,6 +62,8 @@ export default function InterviewPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [attempts, setAttempts] = useState<number | null>(null);
+  const [checkingAttempts, setCheckingAttempts] = useState(true);
 
   // Update input when transcript changes
   useEffect(() => {
@@ -67,20 +72,59 @@ export default function InterviewPage() {
     }
   }, [transcript]);
 
+  useEffect(() => {
+    const checkAttempts = async () => {
+      setCheckingAttempts(true);
+      if (!user) {
+        // Unauthenticated: use localStorage
+        const localAttempts = parseInt(
+          localStorage.getItem("interviewAttempts") || "0",
+          10
+        );
+        setAttempts(localAttempts);
+      } else {
+        // Authenticated: use Firestore field
+        setAttempts(user.interviewAttempts ?? 0);
+      }
+      setCheckingAttempts(false);
+    };
+    checkAttempts();
+  }, [user]);
+
   // Start the interview
   const startInterview = async () => {
     if (mode === "speech") {
-      // Redirect to speech interview page
       router.push(`/interview/speech?level=${level}`);
       return;
     }
-
     setIsLoading(true);
     setIsStarted(true);
     setMessages([]);
     setQuestionCount(0);
     setIsFinished(false);
     setAssessment(null);
+
+    // Increment attempt
+    if (!user) {
+      // Unauthenticated: localStorage
+      const localAttempts =
+        parseInt(localStorage.getItem("interviewAttempts") || "0", 10) + 1;
+      localStorage.setItem("interviewAttempts", localAttempts.toString());
+      setAttempts((prev: number) => prev + 1);
+    } else if (!user.isPaid) {
+      // Authenticated and not paid: update Firestore
+      try {
+        const userRef = doc(db, "users", user.id);
+        await updateDoc(userRef, {
+          interviewAttempts: (user.interviewAttempts ?? 0) + 1,
+        });
+        setAttempts((prev: number) => prev + 1);
+        if (refreshUser) refreshUser();
+      } catch (e: unknown) {
+        // fallback: just update local state
+        setAttempts((prev: number) => prev + 1);
+      }
+    }
 
     // Initialize with system message
     const systemMessage: AIMessage = {
@@ -140,7 +184,7 @@ export default function InterviewPage() {
 
       // Get all messages including the system context
       const allMessages = [
-        ...messages.filter((m) => m.role !== "system"), // Remove any previous system messages
+        ...messages.filter((m: AIMessage) => m.role !== "system"), // Remove any previous system messages
         contextMessage,
         userMessage,
       ];
@@ -174,7 +218,7 @@ export default function InterviewPage() {
   };
 
   // Handle Enter key press
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -196,26 +240,39 @@ export default function InterviewPage() {
     };
   }, [stopListening]);
 
-  if (!user) {
+  if (checkingAttempts) {
     return (
-      <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle>Sign In Required</CardTitle>
-            <CardDescription>
-              You must be signed in to access the AI Interview feature.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button asChild>
-              <a href="/auth/sign-in">Sign In</a>
-            </Button>
-          </CardFooter>
-        </Card>
+      <div className="flex items-center justify-center h-screen">
+        Checking access...
       </div>
     );
   }
-  if (!user.isPaid) {
+  if (!user && attempts !== null && attempts > 0) {
+    // Unauthenticated and already used free attempt
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
+        <div className="relative z-10">
+          <Card className="max-w-md w-full shadow-2xl">
+            <CardHeader>
+              <CardTitle>Upgrade Required</CardTitle>
+              <CardDescription>
+                The AI Interview feature is available for paid users only.
+                Please sign up and upgrade to continue.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="flex flex-col gap-2 items-stretch">
+              <Button asChild>
+                <a href="/auth/sign-in">Sign Up / Sign In</a>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+  if (user && !user.isPaid && attempts !== null && attempts > 0) {
+    // Authenticated, not paid, already used free attempt
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
         <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
@@ -262,7 +319,9 @@ export default function InterviewPage() {
               </h3>
               <RadioGroup
                 value={level}
-                onValueChange={(value) => setLevel(value as InterviewLevel)}
+                onValueChange={(value: string) =>
+                  setLevel(value as InterviewLevel)
+                }
                 className="flex flex-col space-y-3"
               >
                 <div className="flex items-center space-x-2">
@@ -292,7 +351,9 @@ export default function InterviewPage() {
               </h3>
               <RadioGroup
                 value={mode}
-                onValueChange={(value) => setMode(value as InterviewMode)}
+                onValueChange={(value: string) =>
+                  setMode(value as InterviewMode)
+                }
                 className="flex flex-col space-y-3"
               >
                 <div className="flex items-center space-x-2">
@@ -346,7 +407,7 @@ export default function InterviewPage() {
                   {mode === "speech" ? (
                     <Volume2 className="mr-2 h-4 w-4" />
                   ) : (
-                    <BotIcon className="mr-2 h-4 w-4" />
+                    <Bolt className="mr-2 h-4 w-4" />
                   )}
                   Start {mode === "speech" ? "Speech" : "Text"} Interview
                 </>
@@ -362,8 +423,8 @@ export default function InterviewPage() {
             className="flex-grow overflow-y-auto bg-background"
           >
             {messages
-              .filter((m) => m.role !== "system")
-              .map((message, index) => (
+              .filter((m: AIMessage) => m.role !== "system")
+              .map((message: AIMessage, index: number) => (
                 <div
                   key={index}
                   className={`p-3 ${
@@ -373,7 +434,7 @@ export default function InterviewPage() {
                   <div className="flex items-start max-w-4xl mx-auto">
                     <div className="mr-2 mt-0.5">
                       {message.role === "assistant" ? (
-                        <BotIcon className="h-5 w-5 text-primary" />
+                        <Bolt className="h-5 w-5 text-primary" />
                       ) : (
                         <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs">
                           U
