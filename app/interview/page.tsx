@@ -63,9 +63,6 @@ export default function InterviewPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
-  const [attempts, setAttempts] = useState<number | null>(null);
-  const [checkingAttempts, setCheckingAttempts] = useState(true);
-  const [showUpgradePopup, setShowUpgradePopup] = useState(true);
 
   // Update input when transcript changes
   useEffect(() => {
@@ -73,25 +70,6 @@ export default function InterviewPage() {
       setInput(transcript);
     }
   }, [transcript]);
-
-  useEffect(() => {
-    const checkAttempts = async () => {
-      setCheckingAttempts(true);
-      if (!user) {
-        // Unauthenticated: use localStorage
-        const localAttempts = parseInt(
-          localStorage.getItem("interviewAttempts") || "0",
-          10
-        );
-        setAttempts(localAttempts);
-      } else {
-        // Authenticated: use Firestore field
-        setAttempts(user.interviewAttempts ?? 0);
-      }
-      setCheckingAttempts(false);
-    };
-    checkAttempts();
-  }, [user]);
 
   // Start the interview
   const startInterview = async () => {
@@ -105,28 +83,6 @@ export default function InterviewPage() {
     setQuestionCount(0);
     setIsFinished(false);
     setAssessment(null);
-
-    // Increment attempt
-    if (!user) {
-      // Unauthenticated: localStorage
-      const localAttempts =
-        parseInt(localStorage.getItem("interviewAttempts") || "0", 10) + 1;
-      localStorage.setItem("interviewAttempts", localAttempts.toString());
-      setAttempts((prev: number) => prev + 1);
-    } else if (!user.isPaid) {
-      // Authenticated and not paid: update Firestore
-      try {
-        const userRef = doc(db, "users", user.id);
-        await updateDoc(userRef, {
-          interviewAttempts: (user.interviewAttempts ?? 0) + 1,
-        });
-        setAttempts((prev: number) => prev + 1);
-        if (refreshUser) refreshUser();
-      } catch (e: unknown) {
-        // fallback: just update local state
-        setAttempts((prev: number) => prev + 1);
-      }
-    }
 
     // Initialize with system message
     const systemMessage: AIMessage = {
@@ -241,149 +197,6 @@ export default function InterviewPage() {
       stopListening();
     };
   }, [stopListening]);
-
-  if (checkingAttempts) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Checking access...
-      </div>
-    );
-  }
-  if (!user && attempts !== null && attempts > 0 && showUpgradePopup) {
-    // Unauthenticated and already used free attempt
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-        onClick={() => setShowUpgradePopup(false)}
-      >
-        <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
-        <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
-          <Card className="max-w-md w-full shadow-2xl">
-            <CardHeader className="flex flex-row justify-between items-center">
-              <div>
-                <CardTitle>Upgrade Required</CardTitle>
-                <CardDescription>
-                  The AI Interview feature is available for paid users only.
-                  Please sign up and upgrade to continue.
-                </CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowUpgradePopup(false)}
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </CardHeader>
-            <CardFooter className="flex flex-col gap-2 items-stretch">
-              <Button asChild>
-                <a href="/auth/sign-in">Sign Up / Sign In</a>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-  if (
-    user &&
-    !user.isPaid &&
-    attempts !== null &&
-    attempts > 0 &&
-    showUpgradePopup
-  ) {
-    // Authenticated, not paid, already used free attempt
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-        onClick={() => setShowUpgradePopup(false)}
-      >
-        <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
-        <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
-          <Card className="max-w-md w-full shadow-2xl">
-            <CardHeader className="flex flex-row justify-between items-center">
-              <div>
-                <CardTitle>Upgrade Required</CardTitle>
-                <CardDescription>
-                  The AI Interview feature is available for paid users only.
-                </CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowUpgradePopup(false)}
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </CardHeader>
-            <CardFooter className="flex flex-col gap-2 items-stretch">
-              <Button asChild>
-                <a
-                  href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Buy Access
-                </a>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // If popup is closed, show the landing page (not started, not paid, not allowed to start)
-  if (attempts !== null && attempts > 0 && !showUpgradePopup) {
-    if (user && !user.isPaid) {
-      // Authenticated but not paid
-      return (
-        <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle>Upgrade Required</CardTitle>
-              <CardDescription>
-                You are signed in, but need to upgrade to access unlimited
-                interviews.
-              </CardDescription>
-            </CardHeader>
-            <CardFooter>
-              <Button asChild>
-                <a
-                  href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Buy Access
-                </a>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      );
-    } else {
-      // Not authenticated
-      return (
-        <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle>AI Interview</CardTitle>
-              <CardDescription>
-                Welcome to FlutterPrep! Upgrade to unlock unlimited interviews.
-              </CardDescription>
-            </CardHeader>
-            <CardFooter>
-              <Button asChild>
-                <a href="/auth/sign-in">Sign Up / Sign In</a>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      );
-    }
-  }
 
   return (
     <div className="container py-4 h-[calc(100vh-4rem)]">
