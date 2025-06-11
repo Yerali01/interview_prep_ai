@@ -26,6 +26,7 @@ import {
   Loader2,
   Volume2,
   MessageCircle,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +65,7 @@ export default function InterviewPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [attempts, setAttempts] = useState<number | null>(null);
   const [checkingAttempts, setCheckingAttempts] = useState(true);
+  const [showUpgradePopup, setShowUpgradePopup] = useState(true);
 
   // Update input when transcript changes
   useEffect(() => {
@@ -247,19 +249,32 @@ export default function InterviewPage() {
       </div>
     );
   }
-  if (!user && attempts !== null && attempts > 0) {
+  if (!user && attempts !== null && attempts > 0 && showUpgradePopup) {
     // Unauthenticated and already used free attempt
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+        onClick={() => setShowUpgradePopup(false)}
+      >
         <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
-        <div className="relative z-10">
+        <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
           <Card className="max-w-md w-full shadow-2xl">
-            <CardHeader>
-              <CardTitle>Upgrade Required</CardTitle>
-              <CardDescription>
-                The AI Interview feature is available for paid users only.
-                Please sign up and upgrade to continue.
-              </CardDescription>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <div>
+                <CardTitle>Upgrade Required</CardTitle>
+                <CardDescription>
+                  The AI Interview feature is available for paid users only.
+                  Please sign up and upgrade to continue.
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowUpgradePopup(false)}
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </CardHeader>
             <CardFooter className="flex flex-col gap-2 items-stretch">
               <Button asChild>
@@ -271,18 +286,37 @@ export default function InterviewPage() {
       </div>
     );
   }
-  if (user && !user.isPaid && attempts !== null && attempts > 0) {
+  if (
+    user &&
+    !user.isPaid &&
+    attempts !== null &&
+    attempts > 0 &&
+    showUpgradePopup
+  ) {
     // Authenticated, not paid, already used free attempt
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+        onClick={() => setShowUpgradePopup(false)}
+      >
         <div className="absolute inset-0 bg-black/30" aria-hidden="true"></div>
-        <div className="relative z-10">
+        <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
           <Card className="max-w-md w-full shadow-2xl">
-            <CardHeader>
-              <CardTitle>Upgrade Required</CardTitle>
-              <CardDescription>
-                The AI Interview feature is available for paid users only.
-              </CardDescription>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <div>
+                <CardTitle>Upgrade Required</CardTitle>
+                <CardDescription>
+                  The AI Interview feature is available for paid users only.
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowUpgradePopup(false)}
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </CardHeader>
             <CardFooter className="flex flex-col gap-2 items-stretch">
               <Button asChild>
@@ -297,6 +331,27 @@ export default function InterviewPage() {
             </CardFooter>
           </Card>
         </div>
+      </div>
+    );
+  }
+
+  // If popup is closed, show the landing page (not started, not paid, not allowed to start)
+  if (attempts !== null && attempts > 0 && !showUpgradePopup) {
+    return (
+      <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>AI Interview</CardTitle>
+            <CardDescription>
+              Welcome to FlutterPrep! Upgrade to unlock unlimited interviews.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <a href="/auth/sign-in">Sign Up / Sign In</a>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
