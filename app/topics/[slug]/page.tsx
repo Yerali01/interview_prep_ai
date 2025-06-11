@@ -1,159 +1,176 @@
-"use client"
+"use client";
 
-import React from "react"
+import React from "react";
 
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
-import { firebaseGetTopicBySlug } from "@/lib/firebase-service"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, RefreshCw, Copy, Play } from "lucide-react"
-import Link from "next/link"
-import { Skeleton } from "@/components/ui/skeleton"
-import { motion } from "framer-motion"
-import "highlight.js/styles/github-dark.css"
-import { useTopics } from "@/contexts/topics-context"
-import { useDefinitions } from "@/contexts/definitions-context"
-import { EnhancedMarkdown } from "@/components/enhanced-markdown"
-import { CodeSyntaxLegend } from "@/components/code-syntax-legend"
-import { useToast } from "@/hooks/use-toast"
-import { DefinitionTooltip } from "@/components/definition-tooltip"
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import {
+  firebaseGetTopicBySlug,
+  logUserActivity,
+} from "@/lib/firebase-service";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, RefreshCw, Copy, Play } from "lucide-react";
+import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import "highlight.js/styles/github-dark.css";
+import { useTopics } from "@/contexts/topics-context";
+import { useDefinitions } from "@/contexts/definitions-context";
+import { EnhancedMarkdown } from "@/components/enhanced-markdown";
+import { CodeSyntaxLegend } from "@/components/code-syntax-legend";
+import { useToast } from "@/hooks/use-toast";
+import { DefinitionTooltip } from "@/components/definition-tooltip";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface TopicSection {
-  title: string
-  content: string
-  code?: string
+  title: string;
+  content: string;
+  code?: string;
 }
 
 export default function TopicPage() {
-  const params = useParams()
-  const slug = params?.slug as string
-  const { topics } = useTopics()
-  const { definitions } = useDefinitions()
-  const { toast } = useToast()
-  const [topic, setTopic] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  const params = useParams();
+  const slug = params?.slug as string;
+  const { topics } = useTopics();
+  const { definitions } = useDefinitions();
+  const { toast } = useToast();
+  const [topic, setTopic] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchTopic = async () => {
       try {
         if (!slug) {
-          setError("Topic not found")
-          setLoading(false)
-          return
+          setError("Topic not found");
+          setLoading(false);
+          return;
         }
 
         // First try to find the topic in the cached topics
-        const cachedTopic = topics.find((t) => t.slug === slug)
+        const cachedTopic = topics.find((t) => t.slug === slug);
 
         if (cachedTopic && cachedTopic.content) {
-          console.log("Using cached topic:", cachedTopic)
-          setTopic(cachedTopic)
-          setLoading(false)
-          return
+          console.log("Using cached topic:", cachedTopic);
+          setTopic(cachedTopic);
+          setLoading(false);
+          return;
         }
 
         // If not found in cache or content is missing, fetch from Firebase
-        console.log("Fetching topic with slug:", slug)
-        const topicData = await firebaseGetTopicBySlug(slug)
-        console.log("Topic data received:", topicData)
+        console.log("Fetching topic with slug:", slug);
+        const topicData = await firebaseGetTopicBySlug(slug);
+        console.log("Topic data received:", topicData);
 
         if (!topicData) {
-          setError("Topic not found")
+          setError("Topic not found");
         } else {
-          setTopic(topicData)
+          setTopic(topicData);
 
           // Debug the content field
           if (!topicData.content) {
-            console.warn("Topic content is empty or undefined:", topicData)
+            console.warn("Topic content is empty or undefined:", topicData);
           }
         }
       } catch (error) {
-        console.error("Error fetching topic:", error)
-        setError("Failed to load topic")
+        console.error("Error fetching topic:", error);
+        setError("Failed to load topic");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTopic()
-  }, [slug, topics])
+    fetchTopic();
+  }, [slug, topics]);
+
+  useEffect(() => {
+    if (user?.id) {
+      logUserActivity(user.id);
+    }
+  }, [user]);
 
   const handleRefresh = async () => {
-    setRefreshing(true)
+    setRefreshing(true);
     try {
-      const topicData = await firebaseGetTopicBySlug(slug)
+      const topicData = await firebaseGetTopicBySlug(slug);
       if (topicData) {
-        setTopic(topicData)
-        setError(null)
+        setTopic(topicData);
+        setError(null);
         toast({
           title: "Topic refreshed",
           description: "Latest content loaded successfully",
-        })
+        });
       } else {
-        setError("Topic not found")
+        setError("Topic not found");
       }
     } catch (error) {
-      console.error("Error refreshing topic:", error)
-      setError("Failed to refresh topic")
+      console.error("Error refreshing topic:", error);
+      setError("Failed to refresh topic");
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
-  }
+  };
 
   // Function to add tooltips to code
   const addTooltipsToCode = (code: string): React.ReactNode => {
-    if (!code || typeof code !== "string") return code
+    if (!code || typeof code !== "string") return code;
 
-    const definitionsMap = new Map<string, any>()
+    const definitionsMap = new Map<string, any>();
     definitions.forEach((def) => {
-      definitionsMap.set(def.term.toLowerCase(), def)
-    })
+      definitionsMap.set(def.term.toLowerCase(), def);
+    });
 
-    const terms = Array.from(definitionsMap.keys())
-    if (terms.length === 0) return code
+    const terms = Array.from(definitionsMap.keys());
+    if (terms.length === 0) return code;
 
-    const sortedTerms = terms.sort((a, b) => b.length - a.length)
+    const sortedTerms = terms.sort((a, b) => b.length - a.length);
     const pattern = new RegExp(
-      `\\b(${sortedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
-      "gi",
-    )
+      `\\b(${sortedTerms
+        .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|")})\\b`,
+      "gi"
+    );
 
-    const lines = code.split("\n")
+    const lines = code.split("\n");
 
     return lines.map((line, lineIndex) => {
-      const parts = line.split(pattern)
+      const parts = line.split(pattern);
 
       return (
         <React.Fragment key={lineIndex}>
           {parts.map((part, partIndex) => {
-            const definition = definitionsMap.get(part.toLowerCase())
+            const definition = definitionsMap.get(part.toLowerCase());
 
             if (definition && pattern.test(part)) {
               return (
-                <DefinitionTooltip key={`${lineIndex}-${partIndex}-${part}`} term={part} definition={definition}>
+                <DefinitionTooltip
+                  key={`${lineIndex}-${partIndex}-${part}`}
+                  term={part}
+                  definition={definition}
+                >
                   <span className="border-b border-dotted border-blue-400 cursor-help hover:border-blue-600 bg-blue-50 dark:bg-blue-900/20 px-1 rounded">
                     {part}
                   </span>
                 </DefinitionTooltip>
-              )
+              );
             }
-            return part
+            return part;
           })}
           {lineIndex < lines.length - 1 && "\n"}
         </React.Fragment>
-      )
-    })
-  }
+      );
+    });
+  };
 
   // Function to prepare code for DartPad
   const prepareCodeForDartPad = (code: string): string => {
-    const cleanCode = code.trim()
+    const cleanCode = code.trim();
 
     // Check if it's already a complete program
     if (cleanCode.includes("void main(") || cleanCode.includes("main(")) {
-      return cleanCode
+      return cleanCode;
     }
 
     // Check if it's a class definition
@@ -163,79 +180,84 @@ export default function TopicPage() {
 void main() {
   // Example usage - modify as needed
   print('Code is ready to run!');
-}`
+}`;
     }
 
     // Check if it's function definitions
-    if (cleanCode.includes("Future<") || cleanCode.includes("Stream<") || cleanCode.includes("async")) {
+    if (
+      cleanCode.includes("Future<") ||
+      cleanCode.includes("Stream<") ||
+      cleanCode.includes("async")
+    ) {
       return `${cleanCode}
 
 void main() async {
   // Example usage - modify as needed
   print('Async code is ready to run!');
-}`
+}`;
     }
 
     // For simple expressions or statements, wrap in main
     return `void main() {
   ${cleanCode}
-}`
-  }
+}`;
+  };
 
   const openDartPadWithCode = (code: string) => {
-    console.log("🚀 Opening DartPad with specific code:", code)
+    console.log("🚀 Opening DartPad with specific code:", code);
 
     // Prepare the code to be runnable
-    const runnableCode = prepareCodeForDartPad(code)
-    console.log("📝 Prepared code:", runnableCode)
+    const runnableCode = prepareCodeForDartPad(code);
+    console.log("📝 Prepared code:", runnableCode);
 
     // Show warning toast first
     toast({
       title: "Opening DartPad...",
-      description: "Code will be copied to your clipboard. Paste it in DartPad and click Run.",
+      description:
+        "Code will be copied to your clipboard. Paste it in DartPad and click Run.",
       duration: 3000,
-    })
+    });
 
     // Copy to clipboard
     navigator.clipboard
       .writeText(runnableCode)
       .then(() => {
-        console.log("✅ Code copied to clipboard")
+        console.log("✅ Code copied to clipboard");
 
         // Open DartPad after a short delay
         setTimeout(() => {
-          const dartPadWindow = window.open("https://dartpad.dev/", "_blank")
+          const dartPadWindow = window.open("https://dartpad.dev/", "_blank");
 
           if (dartPadWindow) {
-            console.log("✅ DartPad opened successfully")
+            console.log("✅ DartPad opened successfully");
             toast({
               title: "✅ Ready to Code!",
               description:
                 "1. Paste the code (Ctrl+V or Cmd+V)\n2. Click the blue 'Run' button\n3. See the output below!",
               duration: 8000,
-            })
+            });
           } else {
-            console.log("❌ Failed to open DartPad")
+            console.log("❌ Failed to open DartPad");
             toast({
               title: "❌ Popup Blocked",
               description: "Please allow popups for this site, then try again.",
               variant: "destructive",
-            })
+            });
           }
-        }, 1000)
+        }, 1000);
       })
       .catch(() => {
-        console.log("❌ Failed to copy to clipboard")
+        console.log("❌ Failed to copy to clipboard");
         toast({
           title: "❌ Copy Failed",
           description: "Please copy the code manually and open dartpad.dev",
           variant: "destructive",
-        })
-      })
-  }
+        });
+      });
+  };
 
   const copyCode = (code: string) => {
-    const runnableCode = prepareCodeForDartPad(code)
+    const runnableCode = prepareCodeForDartPad(code);
 
     navigator.clipboard
       .writeText(runnableCode)
@@ -244,19 +266,19 @@ void main() async {
           title: "📋 Code Copied!",
           description: "Ready-to-run code copied to clipboard",
           duration: 3000,
-        })
+        });
       })
       .catch(() => {
         toast({
           title: "❌ Copy Failed",
           description: "Please copy the code manually",
           variant: "destructive",
-        })
-      })
-  }
+        });
+      });
+  };
 
   if (loading) {
-    return <TopicSkeleton />
+    return <TopicSkeleton />;
   }
 
   if (error || !topic) {
@@ -272,26 +294,27 @@ void main() async {
         <div className="text-center py-16">
           <h1 className="text-3xl font-bold mb-4">Topic Not Found</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            {error || "The topic you're looking for doesn't exist or has been moved."}
+            {error ||
+              "The topic you're looking for doesn't exist or has been moved."}
           </p>
           <Button asChild>
             <Link href="/topics">Browse All Topics</Link>
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   // Parse content if it's a string
-  let contentSections: TopicSection[] = []
+  let contentSections: TopicSection[] = [];
   try {
     if (typeof topic.content === "string") {
-      contentSections = JSON.parse(topic.content)
+      contentSections = JSON.parse(topic.content);
     } else if (Array.isArray(topic.content)) {
-      contentSections = topic.content
+      contentSections = topic.content;
     }
   } catch (e) {
-    console.error("Error parsing content:", e)
+    console.error("Error parsing content:", e);
   }
 
   return (
@@ -312,13 +335,19 @@ void main() async {
             disabled={refreshing}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">{topic.title}</h1>
           <div className="flex items-center text-muted-foreground">
@@ -331,22 +360,31 @@ void main() async {
           {contentSections && contentSections.length > 0 ? (
             contentSections.map((section, index) => (
               <div key={index} className="mb-12">
-                {section.title && <h2 className="text-2xl font-bold mb-4">{section.title}</h2>}
+                {section.title && (
+                  <h2 className="text-2xl font-bold mb-4">{section.title}</h2>
+                )}
 
-                {section.content && <EnhancedMarkdown content={section.content} definitions={definitions} />}
+                {section.content && (
+                  <EnhancedMarkdown
+                    content={section.content}
+                    definitions={definitions}
+                  />
+                )}
 
                 {section.code && (
                   <div className="my-6">
                     <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden relative">
                       {/* Code header */}
                       <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Example</span>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                          Example
+                        </span>
                         <div className="flex gap-2">
                           <Button
                             onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              copyCode(section.code!)
+                              e.preventDefault();
+                              e.stopPropagation();
+                              copyCode(section.code!);
                             }}
                             variant="ghost"
                             size="sm"
@@ -361,7 +399,9 @@ void main() async {
                       {/* Code content with tooltips */}
                       <div className="relative code-container overflow-hidden">
                         <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto m-0 border-l-4 border-green-500">
-                          <code className="language-dart">{addTooltipsToCode(section.code)}</code>
+                          <code className="language-dart">
+                            {addTooltipsToCode(section.code)}
+                          </code>
                         </pre>
                       </div>
 
@@ -369,11 +409,11 @@ void main() async {
                       <div className="p-4 bg-gray-50 dark:bg-gray-800">
                         <Button
                           onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            console.log("🔥 SECTION BUTTON CLICKED!")
-                            console.log("Code to open:", section.code)
-                            openDartPadWithCode(section.code)
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("🔥 SECTION BUTTON CLICKED!");
+                            console.log("Code to open:", section.code);
+                            openDartPadWithCode(section.code);
                           }}
                           className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded text-sm flex items-center gap-2"
                           type="button"
@@ -382,7 +422,8 @@ void main() async {
                           Try it Yourself »
                         </Button>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          💡 This will copy ready-to-run code to your clipboard and open DartPad
+                          💡 This will copy ready-to-run code to your clipboard
+                          and open DartPad
                         </p>
                       </div>
                     </div>
@@ -400,7 +441,7 @@ void main() async {
         </div>
       </motion.div>
     </div>
-  )
+  );
 }
 
 function TopicSkeleton() {
@@ -427,5 +468,5 @@ function TopicSkeleton() {
         <Skeleton className="h-6 w-2/3" />
       </div>
     </div>
-  )
+  );
 }

@@ -18,6 +18,8 @@ import Link from "next/link";
 import { UserProjectsShowcase } from "@/components/user-projects-showcase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { firebaseGetPublicUserProfile } from "@/lib/firebase-service-fixed";
+import { getDocs, collection, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface UserProfile {
   id: string;
@@ -30,6 +32,91 @@ interface UserProfile {
   quizCount: number;
   joinedAt: string | null;
   isPaid: boolean;
+}
+
+function ActivityBar({ userId }: { userId: string }) {
+  const [activity, setActivity] = useState<Record<string, number>>({});
+  useEffect(() => {
+    async function fetchActivity() {
+      const today = new Date();
+      const lastYear = new Date(today);
+      lastYear.setFullYear(today.getFullYear() - 1);
+      const fromDate = lastYear.toISOString().slice(0, 10);
+      const toDate = today.toISOString().slice(0, 10);
+      const q = query(
+        collection(db, "user_activity"),
+        where("userId", "==", userId),
+        where("date", ">=", fromDate),
+        where("date", "<=", toDate)
+      );
+      const snapshot = await getDocs(q);
+      const data: Record<string, number> = {};
+      snapshot.forEach((doc) => {
+        const d = doc.data();
+        data[d.date] = d.count;
+      });
+      setActivity(data);
+    }
+    fetchActivity();
+  }, [userId]);
+
+  // Build days grid for the last year
+  const days: { date: string; count: number }[] = [];
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (364 - i));
+    const dateStr = d.toISOString().slice(0, 10);
+    days.push({ date: dateStr, count: activity[dateStr] || 0 });
+  }
+  // 7 columns (weeks), 53 rows (days)
+  const weeks: { date: string; count: number }[][] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+  // Color scale
+  const getColor = (count: number) => {
+    if (count === 0) return "bg-gray-200 dark:bg-gray-800";
+    if (count === 1) return "bg-green-200 dark:bg-green-700";
+    if (count < 4) return "bg-green-400 dark:bg-green-600";
+    if (count < 8) return "bg-green-600 dark:bg-green-500";
+    return "bg-green-800 dark:bg-green-400";
+  };
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm text-muted-foreground">
+          Activity in the last year
+        </span>
+        <div className="flex items-center gap-2 text-xs">
+          <span>Less</span>
+          <div className="flex gap-1">
+            <div className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-gray-800" />
+            <div className="w-4 h-4 rounded-sm bg-green-200 dark:bg-green-700" />
+            <div className="w-4 h-4 rounded-sm bg-green-400 dark:bg-green-600" />
+            <div className="w-4 h-4 rounded-sm bg-green-600 dark:bg-green-500" />
+            <div className="w-4 h-4 rounded-sm bg-green-800 dark:bg-green-400" />
+          </div>
+          <span>More</span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="flex">
+          {weeks.map((week, i) => (
+            <div key={i} className="flex flex-col gap-1 mr-1">
+              {week.map((day, j) => (
+                <div
+                  key={j}
+                  title={`${day.date}: ${day.count} activity`}
+                  className={`w-4 h-4 rounded-sm ${getColor(day.count)}`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function UserProfilePage() {
@@ -159,6 +246,7 @@ export default function UserProfilePage() {
             </div>
           </CardHeader>
           <CardContent>
+            <ActivityBar userId={profile.id} />
             <Tabs defaultValue="projects">
               <TabsList className="mb-4">
                 <TabsTrigger value="projects">

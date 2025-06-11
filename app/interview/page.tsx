@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { logUserActivity } from "@/lib/firebase-service";
 
 // Mark this page as dynamic to prevent static generation
 export const dynamic = "force-dynamic";
@@ -83,6 +84,11 @@ export default function InterviewPage() {
     setQuestionCount(0);
     setIsFinished(false);
     setAssessment(null);
+
+    // Log activity
+    if (user?.id) {
+      logUserActivity(user.id);
+    }
 
     // Initialize with system message
     const systemMessage: AIMessage = {

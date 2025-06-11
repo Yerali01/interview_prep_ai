@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { logUserActivity } from "@/lib/firebase-service";
 
 export default function QuizPage() {
   const params = useParams();
@@ -184,6 +185,9 @@ export default function QuizPage() {
 
   const handleShowExplanation = () => {
     setShowExplanation(true);
+    if (user?.id) {
+      logUserActivity(user.id);
+    }
   };
 
   if (loading) {
