@@ -337,23 +337,52 @@ export default function InterviewPage() {
 
   // If popup is closed, show the landing page (not started, not paid, not allowed to start)
   if (attempts !== null && attempts > 0 && !showUpgradePopup) {
-    return (
-      <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle>AI Interview</CardTitle>
-            <CardDescription>
-              Welcome to FlutterPrep! Upgrade to unlock unlimited interviews.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button asChild>
-              <a href="/auth/sign-in">Sign Up / Sign In</a>
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
+    if (user && !user.isPaid) {
+      // Authenticated but not paid
+      return (
+        <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle>Upgrade Required</CardTitle>
+              <CardDescription>
+                You are signed in, but need to upgrade to access unlimited
+                interviews.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button asChild>
+                <a
+                  href="https://flutterprep.lemonsqueezy.com/buy/888ac968-8954-46cc-b67f-763d025aae03?logo=0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Buy Access
+                </a>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      );
+    } else {
+      // Not authenticated
+      return (
+        <div className="container py-4 h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle>AI Interview</CardTitle>
+              <CardDescription>
+                Welcome to FlutterPrep! Upgrade to unlock unlimited interviews.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button asChild>
+                <a href="/auth/sign-in">Sign Up / Sign In</a>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      );
+    }
   }
 
   return (

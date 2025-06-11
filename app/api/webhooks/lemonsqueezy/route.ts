@@ -8,6 +8,7 @@ import {
   updateDoc,
   doc,
 } from "firebase/firestore";
+import { addDays } from "date-fns";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,8 +30,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     // Update isPaid field for all matching users
+    const proExpiry = addDays(new Date(), 30).toISOString();
     for (const userDoc of querySnapshot.docs) {
-      await updateDoc(doc(db, "users", userDoc.id), { isPaid: true });
+      await updateDoc(doc(db, "users", userDoc.id), {
+        isPaid: true,
+        proExpiry,
+      });
     }
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -11,7 +11,13 @@ import {
   type User,
   type UserCredential,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 // Types
@@ -24,6 +30,7 @@ export interface AuthUser {
   github_avatar?: string | null;
   isPaid?: boolean;
   interviewAttempts?: number;
+  proExpiry?: string | null;
 }
 
 export interface AuthResult {
@@ -36,6 +43,22 @@ function convertFirebaseUser(
   firebaseUser: User,
   firestoreData?: any
 ): AuthUser {
+  let isPaid = firestoreData?.isPaid ?? false;
+  let proExpiry = firestoreData?.proExpiry
+    ? new Date(firestoreData.proExpiry)
+    : null;
+  if (proExpiry) {
+    if (proExpiry < new Date()) {
+      // Expired, set isPaid to false and update Firestore
+      isPaid = false;
+      if (firebaseUser.uid) {
+        // Fire and forget, don't await
+        updateDoc(doc(db, "users", firebaseUser.uid), { isPaid: false });
+      }
+    } else {
+      isPaid = true;
+    }
+  }
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email,
@@ -45,8 +68,9 @@ function convertFirebaseUser(
     display_name: firebaseUser.displayName,
     github_username: firestoreData?.github_username,
     github_avatar: firestoreData?.github_avatar,
-    isPaid: firestoreData?.isPaid ?? false,
+    isPaid,
     interviewAttempts: firestoreData?.interviewAttempts ?? 0,
+    proExpiry: firestoreData?.proExpiry ?? null,
   };
 }
 
