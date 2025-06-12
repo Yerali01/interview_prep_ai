@@ -39,42 +39,121 @@ interface UserProfile {
 
 function ActivityBar({ userId }: { userId: string }) {
   const [activity, setActivity] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Enhanced debugging
+  console.log("🚀 ActivityBar: Component is rendering!", { 
+    userId, 
+    userIdType: typeof userId,
+    timestamp: new Date().toISOString()
+  });
+
   useEffect(() => {
     async function fetchActivity() {
-      console.log("🔍 ActivityBar: Fetching activity for userId:", userId);
+      console.log("🔍 ActivityBar: useEffect started");
+      console.log("🔍 ActivityBar: userId:", userId, "Type:", typeof userId);
+      
+      if (!userId) {
+        console.error("❌ ActivityBar: No userId provided");
+        setError("No user ID provided");
+        setIsLoading(false);
+        return;
+      }
+
       const today = new Date();
       const lastYear = new Date(today);
       lastYear.setFullYear(today.getFullYear() - 1);
       const fromDate = lastYear.toISOString().slice(0, 10);
       const toDate = today.toISOString().slice(0, 10);
+      
       console.log("🔍 ActivityBar: Date range:", fromDate, "to", toDate);
+      console.log("🔍 ActivityBar: Database reference:", db ? "✅ DB exists" : "❌ DB is null");
 
       try {
+        setIsLoading(true);
+        console.log("🔍 ActivityBar: Creating query...");
+        
         const q = query(
           collection(db, "user_activity"),
           where("userId", "==", userId),
           where("date", ">=", fromDate),
           where("date", "<=", toDate)
         );
+        
+        console.log("🔍 ActivityBar: Executing query...");
         const snapshot = await getDocs(q);
+        console.log("🔍 ActivityBar: Query executed, docs found:", snapshot.size);
+        
         const data: Record<string, number> = {};
         snapshot.forEach((doc) => {
           const d = doc.data();
           data[d.date] = d.count;
-          console.log(
-            `✅ ActivityBar: Fetched activity for ${d.date}: ${d.count}`
-          );
+          console.log(`✅ ActivityBar: Fetched activity for ${d.date}: ${d.count}`);
         });
+        
         setActivity(data);
         console.log("✅ ActivityBar: Activity data set:", data);
+        setError(null);
       } catch (error) {
         console.error("❌ ActivityBar: Error fetching activity:", error);
+        setError(error instanceof Error ? error.message : "Unknown error");
+      } finally {
+        setIsLoading(false);
+        console.log("🔍 ActivityBar: Fetch completed");
       }
     }
+    
     fetchActivity();
   }, [userId]);
 
-  console.log("🔄 ActivityBar: Rendering with activity data:", activity);
+  console.log("🔄 ActivityBar: Current state:", { 
+    activity, 
+    isLoading, 
+    error, 
+    userId,
+    activityKeys: Object.keys(activity),
+    activityCount: Object.keys(activity).length 
+  });
+
+  // Show loading state with debug info
+  if (isLoading) {
+    return (
+      <div style={{ 
+        border: "3px solid orange", 
+        padding: "20px", 
+        margin: "20px 0",
+        backgroundColor: "rgba(255, 165, 0, 0.1)",
+        borderRadius: "8px"
+      }}>
+        <h3 style={{ color: "orange", margin: "0 0 10px 0" }}>
+          🔄 ActivityBar Loading...
+        </h3>
+        <p>UserID: {userId}</p>
+        <p>Loading activity data from Firestore...</p>
+      </div>
+    );
+  }
+
+  // Show error state with debug info
+  if (error) {
+    return (
+      <div style={{ 
+        border: "3px solid red", 
+        padding: "20px", 
+        margin: "20px 0",
+        backgroundColor: "rgba(255, 0, 0, 0.1)",
+        borderRadius: "8px"
+      }}>
+        <h3 style={{ color: "red", margin: "0 0 10px 0" }}>
+          ❌ ActivityBar Error
+        </h3>
+        <p><strong>UserID:</strong> {userId}</p>
+        <p><strong>Error:</strong> {error}</p>
+        <p><strong>Database:</strong> {db ? "Connected" : "Not connected"}</p>
+      </div>
+    );
+  }
 
   // Build days grid for the last year
   const days: { date: string; count: number }[] = [];
@@ -85,12 +164,12 @@ function ActivityBar({ userId }: { userId: string }) {
     const dateStr = d.toISOString().slice(0, 10);
     days.push({ date: dateStr, count: activity[dateStr] || 0 });
   }
-  // 7 columns (weeks), 53 rows (days)
+
   const weeks: { date: string; count: number }[][] = [];
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7));
   }
-  // Color scale
+
   const getColor = (count: number) => {
     if (count === 0) return "bg-gray-200 dark:bg-gray-800";
     if (count === 1) return "bg-green-200 dark:bg-green-700";
@@ -98,37 +177,61 @@ function ActivityBar({ userId }: { userId: string }) {
     if (count < 8) return "bg-green-600 dark:bg-green-500";
     return "bg-green-800 dark:bg-green-400";
   };
+
+  const totalActiveDays = Object.keys(activity).length;
+  const totalActivity = Object.values(activity).reduce((sum, count) => sum + count, 0);
+
   return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-muted-foreground">
-          Activity in the last year
-        </span>
-        <div className="flex items-center gap-2 text-xs">
-          <span>Less</span>
-          <div className="flex gap-1">
-            <div className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-gray-800" />
-            <div className="w-4 h-4 rounded-sm bg-green-200 dark:bg-green-700" />
-            <div className="w-4 h-4 rounded-sm bg-green-400 dark:bg-green-600" />
-            <div className="w-4 h-4 rounded-sm bg-green-600 dark:bg-green-500" />
-            <div className="w-4 h-4 rounded-sm bg-green-800 dark:bg-green-400" />
-          </div>
-          <span>More</span>
-        </div>
+    <div style={{ 
+      border: "3px solid green", 
+      padding: "20px", 
+      margin: "20px 0",
+      backgroundColor: "rgba(0, 255, 0, 0.1)",
+      borderRadius: "8px"
+    }}>
+      <div style={{ marginBottom: "10px", padding: "10px", backgroundColor: "white", borderRadius: "4px" }}>
+        <h3 style={{ color: "green", margin: "0 0 5px 0" }}>
+          ✅ ActivityBar Loaded Successfully
+        </h3>
+        <p><strong>UserID:</strong> {userId}</p>
+        <p><strong>Active Days:</strong> {totalActiveDays}</p>
+        <p><strong>Total Activity:</strong> {totalActivity}</p>
+        <p><strong>Data Keys:</strong> {Object.keys(activity).slice(0, 5).join(", ")}
+          {Object.keys(activity).length > 5 ? "..." : ""}
+        </p>
       </div>
-      <div className="overflow-x-auto">
-        <div className="flex">
-          {weeks.map((week, i) => (
-            <div key={i} className="flex flex-col gap-1 mr-1">
-              {week.map((day, j) => (
-                <div
-                  key={j}
-                  title={`${day.date}: ${day.count} activity`}
-                  className={`w-4 h-4 rounded-sm ${getColor(day.count)}`}
-                />
-              ))}
+
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-muted-foreground">
+            Activity in the last year ({totalActiveDays} active days)
+          </span>
+          <div className="flex items-center gap-2 text-xs">
+            <span>Less</span>
+            <div className="flex gap-1">
+              <div className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-gray-800" />
+              <div className="w-4 h-4 rounded-sm bg-green-200 dark:bg-green-700" />
+              <div className="w-4 h-4 rounded-sm bg-green-400 dark:bg-green-600" />
+              <div className="w-4 h-4 rounded-sm bg-green-600 dark:bg-green-500" />
+              <div className="w-4 h-4 rounded-sm bg-green-800 dark:bg-green-400" />
             </div>
-          ))}
+            <span>More</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="flex">
+            {weeks.map((week, i) => (
+              <div key={i} className="flex flex-col gap-1 mr-1">
+                {week.map((day, j) => (
+                  <div
+                    key={j}
+                    title={`${day.date}: ${day.count} activity`}
+                    className={`w-4 h-4 rounded-sm ${getColor(day.count)}`}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -144,9 +247,21 @@ export default function UserProfilePage() {
 
   const isCurrentUser = user?.id === userId;
 
+  // Debug log at the very start
+  console.log("🚀 PROFILE PAGE LOADED", { 
+    userId,
+    userIdType: typeof userId,
+    profile: profile?.id, 
+    db: !!db,
+    timestamp: new Date().toISOString()
+  });
+
   useEffect(() => {
     const fetchUserProfile = async () => {
+      console.log("🔍 UserProfilePage: fetchUserProfile started", { userId });
+      
       if (!userId || typeof userId !== "string") {
+        console.error("❌ UserProfilePage: Invalid user ID", { userId, type: typeof userId });
         setError("Invalid user ID");
         setLoading(false);
         return;
@@ -154,25 +269,29 @@ export default function UserProfilePage() {
 
       try {
         setLoading(true);
+        console.log("🔍 UserProfilePage: Calling firebaseGetPublicUserProfile...");
         const result = await firebaseGetPublicUserProfile(userId);
 
         if (result.error) {
           throw new Error(result.error);
         }
 
+        console.log("✅ UserProfilePage: Profile fetched successfully", result.data);
         setProfile(result.data);
 
         // Log activity when viewing a profile
         if (user?.id) {
+          console.log("🔍 UserProfilePage: Logging user activity...");
           await logUserActivity(user.id);
         }
       } catch (err) {
-        console.error("Error fetching user profile:", err);
+        console.error("❌ UserProfilePage: Error fetching user profile:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load user profile"
         );
       } finally {
         setLoading(false);
+        console.log("🔍 UserProfilePage: Fetch completed");
       }
     };
 
@@ -182,6 +301,10 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <div className="container max-w-4xl mx-auto py-12 px-4">
+        <div style={{ border: "2px solid blue", padding: "20px", margin: "20px 0" }}>
+          <h3 style={{ color: "blue" }}>🔄 Profile Page Loading...</h3>
+          <p>UserID: {userId}</p>
+        </div>
         <div className="flex items-center gap-4 mb-6">
           <Skeleton className="h-16 w-16 rounded-full" />
           <div className="space-y-2">
@@ -197,6 +320,11 @@ export default function UserProfilePage() {
   if (error || !profile) {
     return (
       <div className="container max-w-4xl mx-auto py-12 px-4">
+        <div style={{ border: "2px solid red", padding: "20px", margin: "20px 0" }}>
+          <h3 style={{ color: "red" }}>❌ Profile Page Error</h3>
+          <p>UserID: {userId}</p>
+          <p>Error: {error}</p>
+        </div>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold mb-4">User Not Found</h2>
           <p className="text-muted-foreground mb-6">
@@ -212,6 +340,12 @@ export default function UserProfilePage() {
     );
   }
 
+  console.log("✅ UserProfilePage: Rendering profile", { 
+    profileId: profile.id, 
+    displayName: profile.displayName,
+    isPaid: profile.isPaid 
+  });
+
   return (
     <div
       className={`container mx-auto px-4 py-12${
@@ -220,6 +354,12 @@ export default function UserProfilePage() {
           : ""
       }`}
     >
+      <div style={{ border: "2px solid purple", padding: "10px", margin: "10px 0" }}>
+        <h3 style={{ color: "purple" }}>🎉 Profile Page Rendered Successfully!</h3>
+        <p>Profile ID: {profile.id}</p>
+        <p>Display Name: {profile.displayName}</p>
+      </div>
+
       <div
         className={`max-w-4xl mx-auto${
           profile.isPaid
@@ -267,10 +407,8 @@ export default function UserProfilePage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Force render ActivityBar with a prominent border */}
-            <div style={{ border: "5px solid red", marginBottom: "20px" }}>
-              <ActivityBar userId={profile.id} />
-            </div>
+            {/* Enhanced ActivityBar with debugging */}
+            <ActivityBar userId={profile.id} />
 
             <Tabs defaultValue="projects">
               <TabsList className="mb-4">
