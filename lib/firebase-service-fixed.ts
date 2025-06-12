@@ -68,6 +68,8 @@ export interface Project {
   real_world_example?: string;
   createdAt?: string;
   updatedAt?: string;
+  features?: string[];
+  technologies?: string[];
 }
 
 // Get all topics with proper sorting
@@ -133,7 +135,7 @@ export async function firebaseGetTopicBySlug(
 
     console.log(`✅ Successfully fetched topic "${topic.title}"`);
     return topic;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ Error fetching topic with slug "${slug}":`, error);
     throw new Error(`Failed to fetch topic: ${error.message}`);
   }
@@ -163,7 +165,7 @@ export async function firebaseGetQuizzes(): Promise<Quiz[]> {
       `✅ Successfully fetched ${quizzes.length} quizzes from Firebase`
     );
     return quizzes;
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error fetching quizzes from Firebase:", error);
     throw new Error(`Failed to fetch quizzes: ${error.message}`);
   }
@@ -223,10 +225,19 @@ export async function firebaseGetQuizBySlug(
           `🔍 Strategy 3: Getting all questions and filtering manually`
         );
         const allQuestionsSnapshot = await getDocs(questionsCollection);
-        const allQuestions = allQuestionsSnapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        }));
+        const allQuestions = allQuestionsSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            quiz_id: data.quiz_id || "",
+            quiz_slug: data.quiz_slug || "",
+            question: data.question || "",
+            options: data.options || {}, // Ensure options is an object
+            correct_answer: data.correct_answer || "",
+            explanation: data.explanation || "",
+            category: data.category || "",
+          } as QuizQuestion; // Explicitly cast to QuizQuestion
+        });
 
         console.log(`📊 Total questions in database: ${allQuestions.length}`);
         console.log(
@@ -248,42 +259,25 @@ export async function firebaseGetQuizBySlug(
         );
 
         console.log(`📊 Matching questions found: ${matchingQuestions.length}`);
-
-        quiz.questions = matchingQuestions as QuizQuestion[];
-        quiz.questionsCount = matchingQuestions.length;
-      } else {
-        const questions = questionsSnapshot.docs.map((doc) => {
-          const data = doc.data() as QuizQuestion;
-          return {
-            ...data,
-            id: doc.id,
-          };
-        });
-
-        quiz.questions = questions;
-        quiz.questionsCount = questions.length;
+        questionsSnapshot = {
+          docs: matchingQuestions.map((q) => ({ data: () => q, id: q.id })),
+        } as any; // Cast for compatibility
       }
+
+      const questions = questionsSnapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      })) as QuizQuestion[];
 
       console.log(
-        `✅ Successfully fetched quiz "${quiz.title}" with ${quiz.questionsCount} questions`
+        `✅ Successfully fetched ${questions.length} questions for quiz "${quiz.title}"`
       );
-
-      if (quiz.questionsCount === 0) {
-        console.warn(`⚠️ WARNING: Quiz "${quiz.title}" has no questions!`);
-        console.warn(`Quiz details:`, {
-          id: quiz.id,
-          slug: quiz.slug,
-          title: quiz.title,
-        });
-      }
-    } catch (error) {
+      return { ...quiz, questions };
+    } catch (error: any) {
       console.error(`❌ Error fetching questions for quiz "${slug}":`, error);
-      quiz.questions = [];
-      quiz.questionsCount = 0;
+      return { ...quiz, questions: [] };
     }
-
-    return quiz;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ Error fetching quiz with slug "${slug}":`, error);
     throw new Error(`Failed to fetch quiz: ${error.message}`);
   }
@@ -294,32 +288,27 @@ export async function firebaseGetQuestionsByQuizSlug(
   quizSlug: string
 ): Promise<QuizQuestion[]> {
   try {
-    console.log(
-      `🔥 Fetching questions for quiz "${quizSlug}" from Firebase...`
-    );
     const questionsCollection = collection(db, "quiz_questions");
     const q = query(questionsCollection, where("quiz_slug", "==", quizSlug));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      console.log(`⚠️ No questions found for quiz "${quizSlug}"`);
-      return [];
-    }
-
-    const questions = querySnapshot.docs.map((doc) => {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => {
       const data = doc.data() as QuizQuestion;
       return {
-        ...data,
         id: doc.id,
+        quiz_id: data.quiz_id || "",
+        quiz_slug: data.quiz_slug || "",
+        question: data.question || "",
+        options: data.options || {}, // Ensure options is an object
+        correct_answer: data.correct_answer || "",
+        explanation: data.explanation || "",
+        category: data.category || "",
       };
     });
-
-    console.log(
-      `✅ Successfully fetched ${questions.length} questions for quiz "${quizSlug}"`
+  } catch (error: any) {
+    console.error(
+      `❌ Error fetching questions by quiz slug "${quizSlug}":`,
+      error
     );
-    return questions;
-  } catch (error) {
-    console.error(`❌ Error fetching questions for quiz "${quizSlug}":`, error);
     throw new Error(`Failed to fetch questions: ${error.message}`);
   }
 }
@@ -328,39 +317,41 @@ export async function firebaseGetQuestionsByQuizSlug(
 export async function firebaseGetProjects(): Promise<Project[]> {
   try {
     console.log("🔥 Fetching projects from Firebase...");
-    const projectsCollection = collection(db, "projects");
-    const projectsSnapshot = await getDocs(projectsCollection);
-
-    if (projectsSnapshot.empty) {
-      console.log("⚠️ No projects found in Firebase");
-      return [];
-    }
-
-    const projects = projectsSnapshot.docs.map((doc) => {
-      const data = doc.data() as Project;
+    const projectsRef = collection(db, "projects");
+    const snapshot = await getDocs(projectsRef);
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
       return {
-        ...data,
         id: doc.id,
+        name: data.name || "",
+        slug: data.slug || "",
+        description: data.description || "",
+        difficulty_level: data.difficulty_level || "junior",
+        estimated_duration: data.estimated_duration || "",
+        category: data.category || "",
+        github_url: data.github_url || null,
+        demo_url: data.demo_url || null,
+        image_url: data.image_url || null,
+        is_pet_project: data.is_pet_project || false,
+        real_world_example: data.real_world_example || null,
+        createdAt: data.createdAt || "",
+        updatedAt: data.updatedAt || "",
+        features: (Array.isArray(data.features)
+          ? data.features.map((f: any) =>
+              typeof f === "object" && f !== null && "name" in f
+                ? f.name
+                : String(f)
+            )
+          : []) as string[],
+        technologies: (Array.isArray(data.technologies)
+          ? data.technologies.map((t: any) =>
+              typeof t === "object" && t !== null && "name" in t
+                ? t.name
+                : String(t)
+            )
+          : []) as string[],
       };
     });
-
-    // Sort projects by difficulty level (junior -> middle -> senior)
-    const difficultyOrder: Record<DifficultyLevel, number> = {
-      junior: 1,
-      middle: 2,
-      senior: 3,
-    };
-
-    projects.sort((a, b) => {
-      const aOrder = difficultyOrder[a.difficulty_level] || 999;
-      const bOrder = difficultyOrder[b.difficulty_level] || 999;
-      return aOrder - bOrder;
-    });
-
-    console.log(
-      `✅ Successfully fetched ${projects.length} projects from Firebase (sorted by difficulty)`
-    );
-    return projects;
   } catch (error: any) {
     console.error("❌ Error fetching projects from Firebase:", error);
     throw new Error(`Failed to fetch projects: ${error.message}`);
@@ -382,41 +373,43 @@ export async function firebaseGetProjectBySlug(
       return null;
     }
 
-    const docSnap = querySnapshot.docs[0];
-    const project = { ...docSnap.data(), id: docSnap.id } as Project;
+    const doc = querySnapshot.docs[0];
+    const data = doc.data(); // Get data without casting immediately
 
-    // Fetch features
-    const featuresCollection = collection(db, "project_features");
-    const featuresQuery = query(
-      featuresCollection,
-      where("project_id", "==", docSnap.id)
-    );
-    const featuresSnapshot = await getDocs(featuresQuery);
-    const features = featuresSnapshot.docs.map((doc) => ({
-      ...doc.data(),
+    const project: Project = {
       id: doc.id,
-    }));
+      name: data.name || "",
+      slug: data.slug || "",
+      description: data.description || "",
+      difficulty_level: data.difficulty_level || "junior",
+      estimated_duration: data.estimated_duration || "",
+      category: data.category || "",
+      github_url: data.github_url || null,
+      demo_url: data.demo_url || null,
+      image_url: data.image_url || null,
+      is_pet_project: data.is_pet_project || false,
+      real_world_example: data.real_world_example || null,
+      createdAt: data.createdAt || "",
+      updatedAt: data.updatedAt || "",
+      features: (Array.isArray(data.features)
+        ? data.features.map((f: any) =>
+            typeof f === "object" && f !== null && "name" in f
+              ? f.name
+              : String(f)
+          )
+        : []) as string[],
+      technologies: (Array.isArray(data.technologies)
+        ? data.technologies.map((t: any) =>
+            typeof t === "object" && t !== null && "name" in t
+              ? t.name
+              : String(t)
+          )
+        : []) as string[],
+    };
 
-    // Fetch technologies
-    const technologiesCollection = collection(db, "project_technologies");
-    const technologiesQuery = query(
-      technologiesCollection,
-      where("project_id", "==", docSnap.id)
-    );
-    const technologiesSnapshot = await getDocs(technologiesQuery);
-    const technologies = technologiesSnapshot.docs.map((doc) => ({
-      ...doc.data(),
-      id: doc.id,
-    }));
-
-    project.features = features;
-    project.technologies = technologies;
-
-    console.log(
-      `✅ Successfully fetched project "${project.name}" with features and technologies.`
-    );
+    console.log(`✅ Successfully fetched project "${project.name}"`);
     return project;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ Error fetching project with slug "${slug}":`, error);
     throw new Error(`Failed to fetch project: ${error.message}`);
   }
@@ -440,7 +433,7 @@ export async function firebaseCreateQuiz(
     await setDoc(docRef, quiz);
     console.log("✅ Quiz created successfully:", quiz.id);
     return quiz;
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error creating quiz:", error);
     throw new Error(`Failed to create quiz: ${error.message}`);
   }
@@ -457,7 +450,7 @@ export async function firebaseUpdateQuiz(
       updatedAt: new Date().toISOString(),
     });
     console.log("✅ Quiz updated successfully:", id);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error updating quiz:", error);
     throw new Error(`Failed to update quiz: ${error.message}`);
   }
@@ -468,7 +461,7 @@ export async function firebaseDeleteQuiz(id: string): Promise<void> {
     const docRef = doc(db, "quizzes", id);
     await deleteDoc(docRef);
     console.log("✅ Quiz deleted successfully:", id);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error deleting quiz:", error);
     throw new Error(`Failed to delete quiz: ${error.message}`);
   }
@@ -520,7 +513,7 @@ export async function firebaseCreateTopic(
     await setDoc(docRef, topic);
     console.log("✅ Topic created successfully:", topic.id);
     return topic;
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error creating topic:", error);
     throw new Error(`Failed to create topic: ${error.message}`);
   }
@@ -537,7 +530,7 @@ export async function firebaseUpdateTopic(
       updatedAt: new Date().toISOString(),
     });
     console.log("✅ Topic updated successfully:", id);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error updating topic:", error);
     throw new Error(`Failed to update topic: ${error.message}`);
   }
@@ -548,7 +541,7 @@ export async function firebaseDeleteTopic(id: string): Promise<void> {
     const docRef = doc(db, "topics", id);
     await deleteDoc(docRef);
     console.log("✅ Topic deleted successfully:", id);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error deleting topic:", error);
     throw new Error(`Failed to delete topic: ${error.message}`);
   }
@@ -572,7 +565,7 @@ export async function firebaseCreateProject(
     await setDoc(docRef, project);
     console.log("✅ Project created successfully:", project.id);
     return project;
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error creating project:", error);
     throw new Error(`Failed to create project: ${error.message}`);
   }
@@ -589,7 +582,7 @@ export async function firebaseUpdateProject(
       updatedAt: new Date().toISOString(),
     });
     console.log("✅ Project updated successfully:", id);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error updating project:", error);
     throw new Error(`Failed to update project: ${error.message}`);
   }
@@ -600,7 +593,7 @@ export async function firebaseDeleteProject(id: string): Promise<void> {
     const docRef = doc(db, "projects", id);
     await deleteDoc(docRef);
     console.log("✅ Project deleted successfully:", id);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error deleting project:", error);
     throw new Error(`Failed to delete project: ${error.message}`);
   }
@@ -627,12 +620,28 @@ export async function firebaseGetPublicUserProfile(userId: string) {
 
     const userData = userDoc.data();
 
-    // Get user repositories
-    const repositories = await getUserRepositories(userId);
+    let repositories: string[] = [];
+    try {
+      repositories = await getUserRepositories(userId);
+    } catch (repoError: any) {
+      console.error(
+        "❌ Error getting user repositories in public profile:",
+        repoError
+      );
+      repositories = []; // Ensure it's an empty array on error
+    }
 
-    // Get quiz completions count
-    const quizResults = await firebaseGetUserQuizResults(userId);
-    const quizCount = quizResults.length;
+    let quizCount = 0;
+    try {
+      const quizResults = await firebaseGetUserQuizResults(userId);
+      quizCount = quizResults.length;
+    } catch (quizError: any) {
+      console.error(
+        "❌ Error getting user quiz results in public profile:",
+        quizError
+      );
+      quizCount = 0; // Ensure it's 0 on error
+    }
 
     // Construct public profile
     const publicProfile = {

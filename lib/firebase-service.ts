@@ -197,7 +197,7 @@ export const firebaseGetQuizzes = async () => {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error("Error fetching quizzes from Firebase:", error);
-    throw error;
+    return [];
   }
 };
 
@@ -274,7 +274,7 @@ export const firebaseGetUserQuizResults = async (userId: string) => {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error("Error fetching user quiz results from Firebase:", error);
-    throw error;
+    return [];
   }
 };
 
