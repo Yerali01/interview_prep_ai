@@ -1,3 +1,4 @@
+// TEST COMMENT - PLEASE IGNORE
 "use client";
 
 import { useEffect, useState } from "react";
@@ -260,7 +261,11 @@ export default function UserProfilePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ActivityBar userId={profile.id} />
+            {/* Force render ActivityBar with a prominent border */}
+            <div style={{ border: "5px solid red", marginBottom: "20px" }}>
+              <ActivityBar userId={profile.id} />
+            </div>
+
             <Tabs defaultValue="projects">
               <TabsList className="mb-4">
                 <TabsTrigger value="projects">
