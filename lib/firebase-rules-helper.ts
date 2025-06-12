@@ -45,9 +45,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    
+    match /user_activity/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
   }
 }
-`
+`;
 
 export const FIREBASE_SETUP_INSTRUCTIONS = `
 To fix the Firebase permissions issues, please update your Firestore Security Rules:
@@ -63,11 +68,11 @@ The new rules will:
 - Allow public read access to topics, quizzes, questions, projects, and definitions
 - Allow authenticated users to read/write their own user data
 - Ensure proper security for user-specific collections
-`
+`;
 
 export function logFirebaseSetupInstructions() {
-  console.log("🔧 Firebase Setup Instructions:")
-  console.log(FIREBASE_SETUP_INSTRUCTIONS)
-  console.log("📋 Recommended Firestore Rules:")
-  console.log(RECOMMENDED_FIRESTORE_RULES)
+  console.log("🔧 Firebase Setup Instructions:");
+  console.log(FIREBASE_SETUP_INSTRUCTIONS);
+  console.log("📋 Recommended Firestore Rules:");
+  console.log(RECOMMENDED_FIRESTORE_RULES);
 }

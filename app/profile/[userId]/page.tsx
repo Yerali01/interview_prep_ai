@@ -22,6 +22,7 @@ import { firebaseGetPublicUserProfile } from "@/lib/firebase-service-fixed";
 import { getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "@/hooks/use-toast";
+import { logUserActivity } from "@/lib/firebase-service";
 
 interface UserProfile {
   id: string;
@@ -160,6 +161,11 @@ export default function UserProfilePage() {
         }
 
         setProfile(result.data);
+
+        // Log activity when viewing a profile
+        if (user?.id) {
+          await logUserActivity(user.id);
+        }
       } catch (err) {
         console.error("Error fetching user profile:", err);
         setError(
@@ -171,7 +177,7 @@ export default function UserProfilePage() {
     };
 
     fetchUserProfile();
-  }, [userId]);
+  }, [userId, user?.id]);
 
   if (loading) {
     return (
