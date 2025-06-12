@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -20,6 +20,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { firebaseGetPublicUserProfile } from "@/lib/firebase-service-fixed";
 import { getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { toast } from "@/hooks/use-toast";
 
 interface UserProfile {
   id: string;
@@ -38,27 +39,40 @@ function ActivityBar({ userId }: { userId: string }) {
   const [activity, setActivity] = useState<Record<string, number>>({});
   useEffect(() => {
     async function fetchActivity() {
+      console.log("🔍 ActivityBar: Fetching activity for userId:", userId);
       const today = new Date();
       const lastYear = new Date(today);
       lastYear.setFullYear(today.getFullYear() - 1);
       const fromDate = lastYear.toISOString().slice(0, 10);
       const toDate = today.toISOString().slice(0, 10);
-      const q = query(
-        collection(db, "user_activity"),
-        where("userId", "==", userId),
-        where("date", ">=", fromDate),
-        where("date", "<=", toDate)
-      );
-      const snapshot = await getDocs(q);
-      const data: Record<string, number> = {};
-      snapshot.forEach((doc) => {
-        const d = doc.data();
-        data[d.date] = d.count;
-      });
-      setActivity(data);
+      console.log("🔍 ActivityBar: Date range:", fromDate, "to", toDate);
+
+      try {
+        const q = query(
+          collection(db, "user_activity"),
+          where("userId", "==", userId),
+          where("date", ">=", fromDate),
+          where("date", "<=", toDate)
+        );
+        const snapshot = await getDocs(q);
+        const data: Record<string, number> = {};
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          data[d.date] = d.count;
+          console.log(
+            `✅ ActivityBar: Fetched activity for ${d.date}: ${d.count}`
+          );
+        });
+        setActivity(data);
+        console.log("✅ ActivityBar: Activity data set:", data);
+      } catch (error) {
+        console.error("❌ ActivityBar: Error fetching activity:", error);
+      }
     }
     fetchActivity();
   }, [userId]);
+
+  console.log("🔄 ActivityBar: Rendering with activity data:", activity);
 
   // Build days grid for the last year
   const days: { date: string; count: number }[] = [];
@@ -299,26 +313,37 @@ export default function UserProfilePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {profile.repositories.map((repo, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border rounded-md"
-                          >
-                            <div className="flex items-center gap-2 overflow-hidden">
-                              <Github className="h-4 w-4 flex-shrink-0" />
-                              <a
-                                href={repo}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm truncate hover:underline"
+                        {profile.repositories.map(
+                          (repo: string, index: number) => {
+                            const isValidUrl =
+                              typeof repo === "string" &&
+                              repo.startsWith("https://");
+                            return (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-3 border rounded-md"
                               >
-                                {typeof repo === "string"
-                                  ? repo.replace("https://github.com/", "")
-                                  : "Unknown Repository"}
-                              </a>
-                            </div>
-                          </div>
-                        ))}
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <Github className="h-4 w-4 flex-shrink-0" />
+                                  <a
+                                    href={isValidUrl ? repo : undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`text-sm truncate ${
+                                      isValidUrl
+                                        ? "hover:underline"
+                                        : "text-muted-foreground cursor-default"
+                                    }`}
+                                  >
+                                    {isValidUrl
+                                      ? repo.replace("https://github.com/", "")
+                                      : "Invalid Repository URL"}
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     </CardContent>
                   </Card>

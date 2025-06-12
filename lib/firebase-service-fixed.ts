@@ -9,9 +9,11 @@ import {
   updateDoc,
   deleteDoc,
   getDoc,
+  increment,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getUserRepositories } from "./repository-service-v2";
+import { firebaseGetUserQuizResults } from "./firebase-service";
 
 // Type definitions
 type DifficultyLevel = "junior" | "middle" | "senior";
@@ -629,10 +631,8 @@ export async function firebaseGetPublicUserProfile(userId: string) {
     const repositories = await getUserRepositories(userId);
 
     // Get quiz completions count
-    const quizCompletionsRef = collection(db, "quiz_completions");
-    const q = query(quizCompletionsRef, where("userId", "==", userId));
-    const quizSnapshot = await getDocs(q);
-    const quizCount = quizSnapshot.size;
+    const quizResults = await firebaseGetUserQuizResults(userId);
+    const quizCount = quizResults.length;
 
     // Construct public profile
     const publicProfile = {
