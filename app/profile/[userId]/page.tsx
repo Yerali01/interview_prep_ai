@@ -38,6 +38,7 @@ interface UserProfile {
 }
 
 function ActivityBar({ userId }: { userId: string }) {
+  console.log(`✅ ActivityBar: STARTED`);
   const [activity, setActivity] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
